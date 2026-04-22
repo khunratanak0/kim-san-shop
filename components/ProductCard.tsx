@@ -12,60 +12,79 @@ interface Product {
 
 export default function ProductCard({ product, telegramHandle }: { product: Product, telegramHandle: string }) {
   
-  const handleTelegramBuy = () => {
-    if (product.status === 'out_of_stock') return;
-    const message = `Hi, I am interested in *${product.name}* priced at $${product.price}. Is it available?`;
-    const encodedMessage = encodeURIComponent(message);
-    const telegramUrl = `https://t.me/${telegramHandle}?text=${encodedMessage}`;
-    window.open(telegramUrl, '_blank');
-  };
+  // 1. Link Fix: Clean the handle (removes '@' and spaces) and create a bulletproof URL
+  const cleanHandle = telegramHandle.replace('@', '').trim();
+  const message = `Hi, I am interested in *${product.name}* priced at $${product.price.toFixed(2)}. Is it available?`;
+  const encodedMessage = encodeURIComponent(message);
+  const telegramUrl = `https://t.me/${cleanHandle}?text=${encodedMessage}`;
 
   const getStatusBadge = () => {
+    // 2. Badge Fix: Made it look like a clean, premium e-commerce tag
+    const baseClasses = "text-[11px] px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 uppercase tracking-wider w-fit";
     switch (product.status) {
       case 'in_stock':
-        return <span className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>In Stock</span>;
+        return <span className={`${baseClasses} bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20`}><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>In Stock</span>;
       case 'out_of_stock':
-        return <span className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>Out of Stock</span>;
+        return <span className={`${baseClasses} bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400 border border-red-100 dark:border-red-500/20`}><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>Out of Stock</span>;
       case 'check_seller':
-        return <span className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 text-xs px-2.5 py-1 rounded-full font-medium flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Check with Seller</span>;
+        return <span className={`${baseClasses} bg-orange-50 text-orange-500 dark:bg-orange-500/10 dark:text-orange-400 border border-orange-100 dark:border-orange-500/20`}><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>Ask Seller</span>;
     }
   };
 
   const isOutOfStock = product.status === 'out_of_stock';
+  const buttonClasses = "w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 active:scale-[0.98]";
 
   return (
-    <div className="group flex flex-col bg-white dark:bg-gray-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-800 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-black/50 transition-all duration-300">
-      <div className="relative aspect-square overflow-hidden bg-gray-50 dark:bg-gray-800">
+    <div className="group flex flex-col bg-white dark:bg-stone-900 rounded-3xl overflow-hidden border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-2xl hover:shadow-stone-200 dark:hover:shadow-black/50 hover:-translate-y-1 transition-all duration-500">
+      
+      {/* 3. Image Fix: The "Blurred Backdrop" Professional Technique */}
+      <div className="relative aspect-square w-full overflow-hidden bg-stone-100 dark:bg-stone-950 flex items-center justify-center">
+        {/* Background Blur Layer */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-40 dark:opacity-30 blur-2xl scale-110 saturate-150" 
+          style={{ backgroundImage: `url(${product.imageUrl})` }}
+        />
+        {/* Foreground Image */}
         <img 
           src={product.imageUrl} 
           alt={product.name} 
-          className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+          className="relative z-10 w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-700 ease-out drop-shadow-xl"
+          loading="lazy"
         />
-        <div className="absolute top-4 right-4">
-          {getStatusBadge()}
-        </div>
       </div>
       
       <div className="p-6 flex flex-col flex-grow">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-1">{product.name}</h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2 flex-grow">{product.description}</p>
+        <div className="flex justify-between items-start gap-4 mb-2">
+          <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 tracking-tight leading-tight">{product.name}</h3>
+          <span className="text-xl font-extrabold text-orange-400 shrink-0">${product.price.toFixed(2)}</span>
+        </div>
         
-        <div className="mt-6 flex items-center justify-between">
-          <span className="text-xl font-bold text-gray-900 dark:text-white">${product.price.toFixed(2)}</span>
-          
-          <button
-            onClick={handleTelegramBuy}
-            disabled={isOutOfStock}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-              isOutOfStock 
-                ? 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500 cursor-not-allowed'
-                : 'bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200'
-            }`}
+        {/* Badge is now safely located here */}
+        <div className="mb-4">
+          {getStatusBadge()}
+        </div>
+        
+        <p className="text-sm text-stone-500 dark:text-stone-400 flex-grow mb-6 leading-relaxed whitespace-pre-wrap">
+          {product.description}
+        </p>
+        
+        {/* Safe HTML Link instead of window.open */}
+        {isOutOfStock ? (
+          <button disabled className={`${buttonClasses} bg-stone-50 text-stone-400 dark:bg-stone-800/50 dark:text-stone-500 cursor-not-allowed`}>
+            <Send className="w-4 h-4" />
+            Currently Unavailable
+          </button>
+        ) : (
+          <a 
+            href={telegramUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className={`${buttonClasses} bg-[#2AABEE] text-white hover:bg-[#229ED9] shadow-lg shadow-[#2AABEE]/20 hover:shadow-[#2AABEE]/40`}
           >
             <Send className="w-4 h-4" />
-            {isOutOfStock ? 'Unavailable' : 'Inquire'}
-          </button>
-        </div>
+            Inquire via Telegram
+          </a>
+        )}
       </div>
     </div>
   );
