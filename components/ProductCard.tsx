@@ -43,7 +43,7 @@ export default function ProductCard({
   product: Product; 
   telegramHandle: string; 
   // Make it optional in TypeScript so it doesn't yell if missed
-  lang?: 'en' | 'km'; 
+  lang?: string; 
 }) {
   
   // FIX 2: Bulletproof dictionary fallback just in case 'lang' gets mangled
