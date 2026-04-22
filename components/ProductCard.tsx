@@ -37,14 +37,21 @@ const dict = {
 export default function ProductCard({ 
   product, 
   telegramHandle, 
-  lang 
+  // FIX 1: Provide a default value so it's never undefined
+  lang = 'en' 
 }: { 
   product: Product; 
   telegramHandle: string; 
-  lang: 'en' | 'km'; 
+  // Make it optional in TypeScript so it doesn't yell if missed
+  lang?: 'en' | 'km'; 
 }) {
-  const t = dict[lang];
-  const cleanHandle = telegramHandle.replace('@', '').trim();
+  
+  // FIX 2: Bulletproof dictionary fallback just in case 'lang' gets mangled
+  const t = dict[lang] || dict['en']; 
+  
+  // Safely handle cases where telegramHandle might be missing on first load
+  const safeHandle = telegramHandle || 'your_telegram_username';
+  const cleanHandle = safeHandle.replace('@', '').trim();
   
   const message = product.hidePrice
     ? t.msgHidden.replace('{name}', product.name)
@@ -62,6 +69,8 @@ export default function ProductCard({
         return <span className={`${baseClasses} bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400 border border-red-100 dark:border-red-500/20`}><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>{t.outOfStock}</span>;
       case 'check_seller':
         return <span className={`${baseClasses} bg-orange-50 text-orange-500 dark:bg-orange-500/10 dark:text-orange-400 border border-orange-100 dark:border-orange-500/20`}><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>{t.askSeller}</span>;
+      default:
+        return null;
     }
   };
 
