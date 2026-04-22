@@ -4,7 +4,14 @@ import { Sun, Moon, ShoppingBag } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
-export default function Header({ storeName }: { storeName: string }) {
+interface HeaderProps {
+  storeName: string;
+  logoUrl?: string;
+  logoSize?: number;
+  logoOffsetY?: number; // Added new property
+}
+
+export default function Header({ storeName, logoUrl, logoSize = 48, logoOffsetY = 0 }: HeaderProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -14,9 +21,23 @@ export default function Header({ storeName }: { storeName: string }) {
     <header className="sticky top-0 z-50 w-full border-b border-orange-100/50 bg-white/80 backdrop-blur-md dark:border-stone-800 dark:bg-stone-950/80 transition-colors duration-300">
       <div className="container mx-auto px-6 h-20 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="bg-orange-50 dark:bg-stone-800 p-2.5 rounded-2xl group-hover:bg-orange-100 dark:group-hover:bg-stone-700 transition-all duration-300">
-            <ShoppingBag className="w-5 h-5 text-orange-400 group-hover:scale-110 transition-transform" />
-          </div>
+          {/* Added transform translateY for manual vertical alignment pixel pushing */}
+          {logoUrl ? (
+            <img 
+              src={logoUrl} 
+              alt={`${storeName} Logo`} 
+              style={{ 
+                height: `${logoSize}px`, 
+                transform: `translateY(${logoOffsetY}px)` 
+              }} 
+              className="object-contain w-auto group-hover:scale-105 transition-transform duration-300 rounded-lg"
+            />
+          ) : (
+            <div className="bg-orange-50 dark:bg-stone-800 p-2.5 rounded-2xl group-hover:bg-orange-100 dark:group-hover:bg-stone-700 transition-all duration-300">
+              <ShoppingBag className="w-5 h-5 text-orange-400 group-hover:scale-110 transition-transform" />
+            </div>
+          )}
+          
           <span className="font-extrabold text-xl tracking-tight text-stone-800 dark:text-stone-100">
             {storeName || "KIM SAN SHOP"}
           </span>

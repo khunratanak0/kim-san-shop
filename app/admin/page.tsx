@@ -4,7 +4,7 @@ import { useTheme } from 'next-themes';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { Trash2, Edit, Plus, Settings, LogOut, Package, Sun, Moon, UploadCloud } from 'lucide-react'; 
+import { Trash2, Edit, Plus, Settings, LogOut, Package, Sun, Moon, UploadCloud, Image as ImageIcon, X } from 'lucide-react'; 
 
 export default function AdminDashboard() {
   const { theme, setTheme } = useTheme();
@@ -15,10 +15,23 @@ export default function AdminDashboard() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
+  // Store Settings State
   const [storeName, setStoreName] = useState('');
   const [tagline, setTagline] = useState('');
   const [telegramHandle, setTelegramHandle] = useState('');
+  
+  // Header Logo State
+  const [logoUrl, setLogoUrl] = useState('');
+  const [logoSize, setLogoSize] = useState(48);
+  const [logoOffsetY, setLogoOffsetY] = useState(0); // NEW: Vertical adjustment
+  const [isProcessingLogo, setIsProcessingLogo] = useState(false);
+  
+  // Hero Image State
+  const [heroImageUrl, setHeroImageUrl] = useState('');
+  const [heroImageSize, setHeroImageSize] = useState(128); // NEW: Hero size adjustment
+  const [isProcessingHeroImage, setIsProcessingHeroImage] = useState(false);
 
+  // Product Form State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [productName, setProductName] = useState('');
   const [description, setDescription] = useState('');
@@ -47,6 +60,13 @@ export default function AdminDashboard() {
         setStoreName(data.storeName || '');
         setTagline(data.tagline || '');
         setTelegramHandle(data.telegramHandle || '');
+        
+        setLogoUrl(data.logoUrl || '');
+        setLogoSize(data.logoSize || 48);
+        setLogoOffsetY(data.logoOffsetY || 0);
+        
+        setHeroImageUrl(data.heroImageUrl || '');
+        setHeroImageSize(data.heroImageSize || 128);
       }
     });
 
@@ -68,74 +88,86 @@ export default function AdminDashboard() {
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await setDoc(doc(db, 'settings', 'global'), { storeName, tagline, telegramHandle });
+      await setDoc(doc(db, 'settings', 'global'), { 
+        storeName, tagline, telegramHandle, 
+        logoUrl, logoSize, logoOffsetY, 
+        heroImageUrl, heroImageSize 
+      });
       alert('Settings Saved Successfully!');
     } catch (error) {
       console.error("Error saving settings", error);
+      alert("Error saving settings.");
     }
   };
 
-  // --- NEW: Magic Base64 Image Compressor ---
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsProcessingImage(true);
+  // --- Base64 Compressors ---
+  const processImage = (file: File, maxWidth: number, callback: (base64: string) => void) => {
     const reader = new FileReader();
-    
     reader.onload = (event) => {
       const img = new Image();
       img.src = event.target?.result as string;
-      
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800; // Keeps quality high but file size low
-        const scaleSize = MAX_WIDTH / img.width;
-        
-        // Only resize if the image is larger than MAX_WIDTH
-        if (img.width > MAX_WIDTH) {
-          canvas.width = MAX_WIDTH;
+        const scaleSize = maxWidth / img.width;
+        if (img.width > maxWidth) {
+          canvas.width = maxWidth;
           canvas.height = img.height * scaleSize;
         } else {
           canvas.width = img.width;
           canvas.height = img.height;
         }
-
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        // Convert to Base64 Text (JPEG format, 80% quality)
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
-        setImageUrl(compressedBase64);
-        setIsProcessingImage(false);
+        
+        const outputType = file.type === 'image/png' ? 'image/png' : 'image/webp';
+        callback(canvas.toDataURL(outputType, 0.8));
       };
     };
     reader.readAsDataURL(file);
   };
-  // ------------------------------------------
+
+  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsProcessingImage(true);
+    processImage(file, 800, (base64) => {
+      setImageUrl(base64);
+      setIsProcessingImage(false);
+    });
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsProcessingLogo(true);
+    processImage(file, 400, (base64) => {
+      setLogoUrl(base64);
+      setIsProcessingLogo(false);
+    });
+  };
+
+  const handleHeroUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsProcessingHeroImage(true);
+    processImage(file, 600, (base64) => {
+      setHeroImageUrl(base64);
+      setIsProcessingHeroImage(false);
+    });
+  };
+  // -------------------------
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const productData = {
-        name: productName,
-        description,
-        price: parseFloat(price),
-        imageUrl,
-        status,
-      };
-
+      const productData = { name: productName, description, price: parseFloat(price), imageUrl, status };
       if (editingId) {
         await updateDoc(doc(db, 'products', editingId), productData);
         alert('Product Updated!');
       } else {
-        await addDoc(collection(db, 'products'), {
-          ...productData,
-          createdAt: new Date().getTime(),
-        });
+        await addDoc(collection(db, 'products'), { ...productData, createdAt: new Date().getTime() });
         alert('Product Added!');
       }
-      
       resetForm();
       fetchData();
     } catch (error) {
@@ -162,8 +194,7 @@ export default function AdminDashboard() {
   };
 
   const resetForm = () => {
-    setEditingId(null);
-    setProductName(''); setDescription(''); setPrice(''); setImageUrl(''); setStatus('in_stock');
+    setEditingId(null); setProductName(''); setDescription(''); setPrice(''); setImageUrl(''); setStatus('in_stock');
   };
 
   const inputClasses = "w-full p-3.5 rounded-xl bg-stone-50 border border-orange-100/50 focus:border-orange-400 focus:ring-4 focus:ring-orange-400/10 outline-none dark:bg-stone-950 dark:border-stone-800 dark:text-white dark:focus:border-orange-400 transition-all text-sm";
@@ -222,7 +253,86 @@ export default function AdminDashboard() {
               </div>
               <h2 className="text-xl font-bold text-stone-800 dark:text-white">Store Settings</h2>
             </div>
-            <form onSubmit={handleSaveSettings} className="flex flex-col gap-5">
+            <form onSubmit={handleSaveSettings} className="flex flex-col gap-6">
+              
+              {/* HEADER LOGO UPLOAD AREA */}
+              <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Header Logo</label>
+                  {logoUrl && (
+                    <button type="button" onClick={() => setLogoUrl('')} className="text-xs font-bold text-red-400 hover:text-red-500 flex items-center gap-1">
+                      <X className="w-3 h-3" /> Remove
+                    </button>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl bg-white dark:bg-stone-900 border border-orange-100 dark:border-stone-700 flex items-center justify-center overflow-hidden shrink-0">
+                    {logoUrl ? <img src={logoUrl} alt="Logo" className="object-contain w-full h-full p-1" /> : <ImageIcon className="w-6 h-6 text-stone-300" />}
+                  </div>
+                  <label className={`cursor-pointer flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs transition-all duration-300 ${isProcessingLogo ? 'bg-orange-100 text-orange-400' : 'bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300'}`}>
+                    <UploadCloud className="w-4 h-4" />
+                    {isProcessingLogo ? 'Processing...' : 'Upload Logo'}
+                    <input type="file" accept="image/*" onClick={(e) => { (e.target as HTMLInputElement).value = '' }} onChange={handleLogoUpload} className="hidden" disabled={isProcessingLogo} />
+                  </label>
+                </div>
+
+                {logoUrl && (
+                  <div className="space-y-4">
+                    {/* Header Logo Size Slider */}
+                    <div>
+                      <div className="flex justify-between text-xs font-bold text-stone-400 mb-2">
+                        <span>Logo Size</span>
+                        <span className="text-orange-400">{logoSize}px</span>
+                      </div>
+                      <input type="range" min="20" max="120" value={logoSize} onChange={(e) => setLogoSize(Number(e.target.value))} className="w-full accent-orange-400" />
+                    </div>
+                    {/* Header Logo Vertical Offset Slider */}
+                    <div>
+                      <div className="flex justify-between text-xs font-bold text-stone-400 mb-2">
+                        <span>Vertical Align (Offset)</span>
+                        <span className="text-orange-400">{logoOffsetY}px</span>
+                      </div>
+                      <input type="range" min="-30" max="30" value={logoOffsetY} onChange={(e) => setLogoOffsetY(Number(e.target.value))} className="w-full accent-orange-400" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* HERO IMAGE UPLOAD AREA */}
+              <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Hero Image (Above Title)</label>
+                  {heroImageUrl && (
+                    <button type="button" onClick={() => setHeroImageUrl('')} className="text-xs font-bold text-red-400 hover:text-red-500 flex items-center gap-1">
+                      <X className="w-3 h-3" /> Remove
+                    </button>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl bg-white dark:bg-stone-900 border border-orange-100 dark:border-stone-700 flex items-center justify-center overflow-hidden shrink-0">
+                    {heroImageUrl ? <img src={heroImageUrl} alt="Hero" className="object-contain w-full h-full p-1" /> : <ImageIcon className="w-6 h-6 text-stone-300" />}
+                  </div>
+                  <label className={`cursor-pointer flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs transition-all duration-300 ${isProcessingHeroImage ? 'bg-orange-100 text-orange-400' : 'bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300'}`}>
+                    <UploadCloud className="w-4 h-4" />
+                    {isProcessingHeroImage ? 'Processing...' : 'Upload Hero Image'}
+                    <input type="file" accept="image/*" onClick={(e) => { (e.target as HTMLInputElement).value = '' }} onChange={handleHeroUpload} className="hidden" disabled={isProcessingHeroImage} />
+                  </label>
+                </div>
+
+                {/* Hero Image Size Slider */}
+                {heroImageUrl && (
+                  <div>
+                    <div className="flex justify-between text-xs font-bold text-stone-400 mb-2">
+                      <span>Hero Display Size</span>
+                      <span className="text-orange-400">{heroImageSize}px</span>
+                    </div>
+                    <input type="range" min="40" max="300" value={heroImageSize} onChange={(e) => setHeroImageSize(Number(e.target.value))} className="w-full accent-orange-400" />
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">Store Name</label>
                 <input value={storeName} onChange={(e)=>setStoreName(e.target.value)} className={inputClasses} required />
@@ -235,7 +345,7 @@ export default function AdminDashboard() {
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">Telegram Handle</label>
                 <input value={telegramHandle} onChange={(e)=>setTelegramHandle(e.target.value)} placeholder="username" className={inputClasses} required />
               </div>
-              <button type="submit" className="w-full bg-stone-800 text-white dark:bg-stone-100 dark:text-stone-900 py-3.5 rounded-xl font-bold mt-4 hover:opacity-90 transition-opacity active:scale-[0.98]">Save Settings</button>
+              <button type="submit" disabled={isProcessingLogo || isProcessingHeroImage} className="w-full bg-stone-800 text-white dark:bg-stone-100 dark:text-stone-900 py-3.5 rounded-xl font-bold mt-2 hover:opacity-90 transition-opacity active:scale-[0.98]">Save Settings</button>
             </form>
           </div>
 
@@ -263,7 +373,6 @@ export default function AdminDashboard() {
                 <input value={price} type="number" step="0.01" onChange={(e)=>setPrice(e.target.value)} className={inputClasses} required />
               </div>
               
-              {/* NEW: Updated Image Input Area */}
               <div className="md:col-span-2">
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">Product Image</label>
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -278,17 +387,10 @@ export default function AdminDashboard() {
                   <label className={`cursor-pointer flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 ${isProcessingImage ? 'bg-orange-100 text-orange-400' : 'bg-stone-100 hover:bg-stone-200 text-stone-600 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300'}`}>
                     <UploadCloud className="w-5 h-5" />
                     {isProcessingImage ? 'Processing...' : 'Upload Local File'}
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={handleImageUpload} 
-                      className="hidden" 
-                      disabled={isProcessingImage}
-                    />
+                    <input type="file" accept="image/*" onClick={(e) => { (e.target as HTMLInputElement).value = '' }} onChange={handleProductImageUpload} className="hidden" disabled={isProcessingImage}/>
                   </label>
                 </div>
                 
-                {/* Image Preview */}
                 {imageUrl && (
                   <div className="mt-4 flex items-center gap-4">
                     <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-orange-100 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 shadow-sm">

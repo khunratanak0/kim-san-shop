@@ -12,14 +12,12 @@ interface Product {
 
 export default function ProductCard({ product, telegramHandle }: { product: Product, telegramHandle: string }) {
   
-  // 1. Link Fix: Clean the handle (removes '@' and spaces) and create a bulletproof URL
   const cleanHandle = telegramHandle.replace('@', '').trim();
   const message = `Hi, I am interested in *${product.name}* priced at $${product.price.toFixed(2)}. Is it available?`;
   const encodedMessage = encodeURIComponent(message);
   const telegramUrl = `https://t.me/${cleanHandle}?text=${encodedMessage}`;
 
   const getStatusBadge = () => {
-    // 2. Badge Fix: Made it look like a clean, premium e-commerce tag
     const baseClasses = "text-[11px] px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 uppercase tracking-wider w-fit";
     switch (product.status) {
       case 'in_stock':
@@ -37,18 +35,18 @@ export default function ProductCard({ product, telegramHandle }: { product: Prod
   return (
     <div className="group flex flex-col bg-white dark:bg-stone-900 rounded-3xl overflow-hidden border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-2xl hover:shadow-stone-200 dark:hover:shadow-black/50 hover:-translate-y-1 transition-all duration-500">
       
-      {/* 3. Image Fix: The "Blurred Backdrop" Professional Technique */}
+      {/* Blurred Backdrop & Tightly Rounded Photo */}
       <div className="relative aspect-square w-full overflow-hidden bg-stone-100 dark:bg-stone-950 flex items-center justify-center">
         {/* Background Blur Layer */}
         <div 
           className="absolute inset-0 bg-cover bg-center opacity-40 dark:opacity-30 blur-2xl scale-110 saturate-150" 
           style={{ backgroundImage: `url(${product.imageUrl})` }}
         />
-        {/* Foreground Image */}
+        {/* Foreground Image - Changed w-full/h-full to max-w/max-h to wrap tightly! */}
         <img 
           src={product.imageUrl} 
           alt={product.name} 
-          className="relative z-10 w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-700 ease-out drop-shadow-xl"
+          className="relative z-10 max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] object-contain rounded-2xl group-hover:scale-105 transition-transform duration-700 ease-out shadow-2xl"
           loading="lazy"
         />
       </div>
@@ -59,7 +57,6 @@ export default function ProductCard({ product, telegramHandle }: { product: Prod
           <span className="text-xl font-extrabold text-orange-400 shrink-0">${product.price.toFixed(2)}</span>
         </div>
         
-        {/* Badge is now safely located here */}
         <div className="mb-4">
           {getStatusBadge()}
         </div>
@@ -68,7 +65,6 @@ export default function ProductCard({ product, telegramHandle }: { product: Prod
           {product.description}
         </p>
         
-        {/* Safe HTML Link instead of window.open */}
         {isOutOfStock ? (
           <button disabled className={`${buttonClasses} bg-stone-50 text-stone-400 dark:bg-stone-800/50 dark:text-stone-500 cursor-not-allowed`}>
             <Send className="w-4 h-4" />
