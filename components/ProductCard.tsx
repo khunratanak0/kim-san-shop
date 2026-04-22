@@ -6,6 +6,7 @@ interface Product {
   name: string;
   description: string;
   price: number;
+  hidePrice?: boolean; // NEW: Added interface prop
   imageUrl: string;
   status: 'in_stock' | 'out_of_stock' | 'check_seller';
 }
@@ -13,7 +14,12 @@ interface Product {
 export default function ProductCard({ product, telegramHandle }: { product: Product, telegramHandle: string }) {
   
   const cleanHandle = telegramHandle.replace('@', '').trim();
-  const message = `Hi, I am interested in *${product.name}* priced at $${product.price.toFixed(2)}. Is it available?`;
+  
+  // NEW: Dynamic message based on whether price is hidden
+  const message = product.hidePrice
+    ? `Hi, I am interested in *${product.name}*. Can you provide the price and availability?`
+    : `Hi, I am interested in *${product.name}* priced at $${product.price.toFixed(2)}. Is it available?`;
+    
   const encodedMessage = encodeURIComponent(message);
   const telegramUrl = `https://t.me/${cleanHandle}?text=${encodedMessage}`;
 
@@ -42,7 +48,6 @@ export default function ProductCard({ product, telegramHandle }: { product: Prod
           className="absolute inset-0 bg-cover bg-center opacity-40 dark:opacity-30 blur-2xl scale-110 saturate-150" 
           style={{ backgroundImage: `url(${product.imageUrl})` }}
         />
-        {/* Foreground Image - Changed w-full/h-full to max-w/max-h to wrap tightly! */}
         <img 
           src={product.imageUrl} 
           alt={product.name} 
@@ -54,7 +59,15 @@ export default function ProductCard({ product, telegramHandle }: { product: Prod
       <div className="p-6 flex flex-col flex-grow">
         <div className="flex justify-between items-start gap-4 mb-2">
           <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 tracking-tight leading-tight">{product.name}</h3>
-          <span className="text-xl font-extrabold text-orange-400 shrink-0">${product.price.toFixed(2)}</span>
+          
+          {/* NEW: Conditional Price Display */}
+          <span className="text-xl font-extrabold text-orange-400 shrink-0 mt-0.5">
+            {product.hidePrice ? (
+              <span className="text-sm px-3 py-1 bg-orange-50 dark:bg-orange-500/10 rounded-lg">DM for Price</span>
+            ) : (
+              `$${product.price.toFixed(2)}`
+            )}
+          </span>
         </div>
         
         <div className="mb-4">

@@ -23,12 +23,12 @@ export default function AdminDashboard() {
   // Header Logo State
   const [logoUrl, setLogoUrl] = useState('');
   const [logoSize, setLogoSize] = useState(48);
-  const [logoOffsetY, setLogoOffsetY] = useState(0); // NEW: Vertical adjustment
+  const [logoOffsetY, setLogoOffsetY] = useState(0); 
   const [isProcessingLogo, setIsProcessingLogo] = useState(false);
   
   // Hero Image State
   const [heroImageUrl, setHeroImageUrl] = useState('');
-  const [heroImageSize, setHeroImageSize] = useState(128); // NEW: Hero size adjustment
+  const [heroImageSize, setHeroImageSize] = useState(128); 
   const [isProcessingHeroImage, setIsProcessingHeroImage] = useState(false);
 
   // Product Form State
@@ -36,6 +36,7 @@ export default function AdminDashboard() {
   const [productName, setProductName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
+  const [hidePrice, setHidePrice] = useState(false); // NEW: Hide Price State
   const [imageUrl, setImageUrl] = useState('');
   const [status, setStatus] = useState('in_stock');
   const [isProcessingImage, setIsProcessingImage] = useState(false);
@@ -100,7 +101,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // --- Base64 Compressors ---
   const processImage = (file: File, maxWidth: number, callback: (base64: string) => void) => {
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -155,12 +155,20 @@ export default function AdminDashboard() {
       setIsProcessingHeroImage(false);
     });
   };
-  // -------------------------
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const productData = { name: productName, description, price: parseFloat(price), imageUrl, status };
+      // Include hidePrice in the saved data. Default price to 0 if hidden and left blank.
+      const productData = { 
+        name: productName, 
+        description, 
+        price: hidePrice ? 0 : parseFloat(price), 
+        hidePrice, 
+        imageUrl, 
+        status 
+      };
+
       if (editingId) {
         await updateDoc(doc(db, 'products', editingId), productData);
         alert('Product Updated!');
@@ -180,7 +188,8 @@ export default function AdminDashboard() {
     setEditingId(product.id);
     setProductName(product.name);
     setDescription(product.description);
-    setPrice(product.price.toString());
+    setPrice(product.price ? product.price.toString() : '');
+    setHidePrice(product.hidePrice || false); // Load hide price state
     setImageUrl(product.imageUrl);
     setStatus(product.status);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -194,7 +203,7 @@ export default function AdminDashboard() {
   };
 
   const resetForm = () => {
-    setEditingId(null); setProductName(''); setDescription(''); setPrice(''); setImageUrl(''); setStatus('in_stock');
+    setEditingId(null); setProductName(''); setDescription(''); setPrice(''); setHidePrice(false); setImageUrl(''); setStatus('in_stock');
   };
 
   const inputClasses = "w-full p-3.5 rounded-xl bg-stone-50 border border-orange-100/50 focus:border-orange-400 focus:ring-4 focus:ring-orange-400/10 outline-none dark:bg-stone-950 dark:border-stone-800 dark:text-white dark:focus:border-orange-400 transition-all text-sm";
@@ -279,7 +288,6 @@ export default function AdminDashboard() {
 
                 {logoUrl && (
                   <div className="space-y-4">
-                    {/* Header Logo Size Slider */}
                     <div>
                       <div className="flex justify-between text-xs font-bold text-stone-400 mb-2">
                         <span>Logo Size</span>
@@ -287,7 +295,6 @@ export default function AdminDashboard() {
                       </div>
                       <input type="range" min="20" max="120" value={logoSize} onChange={(e) => setLogoSize(Number(e.target.value))} className="w-full accent-orange-400" />
                     </div>
-                    {/* Header Logo Vertical Offset Slider */}
                     <div>
                       <div className="flex justify-between text-xs font-bold text-stone-400 mb-2">
                         <span>Vertical Align (Offset)</span>
@@ -321,7 +328,6 @@ export default function AdminDashboard() {
                   </label>
                 </div>
 
-                {/* Hero Image Size Slider */}
                 {heroImageUrl && (
                   <div>
                     <div className="flex justify-between text-xs font-bold text-stone-400 mb-2">
@@ -368,9 +374,31 @@ export default function AdminDashboard() {
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">Product Name</label>
                 <input value={productName} onChange={(e)=>setProductName(e.target.value)} className={inputClasses} required />
               </div>
+              
+              {/* NEW: PRICE AND HIDE PRICE TOGGLE */}
               <div className="md:col-span-1">
-                <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">Price ($)</label>
-                <input value={price} type="number" step="0.01" onChange={(e)=>setPrice(e.target.value)} className={inputClasses} required />
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-bold text-stone-400 uppercase">Price ($)</label>
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-stone-500 hover:text-orange-400 cursor-pointer transition-colors">
+                    <input 
+                      type="checkbox" 
+                      checked={hidePrice} 
+                      onChange={(e) => setHidePrice(e.target.checked)} 
+                      className="w-3.5 h-3.5 accent-orange-400" 
+                    />
+                    Hide Price (Ask Seller)
+                  </label>
+                </div>
+                <input 
+                  value={price} 
+                  type="number" 
+                  step="0.01" 
+                  onChange={(e)=>setPrice(e.target.value)} 
+                  className={`${inputClasses} ${hidePrice ? 'opacity-50 cursor-not-allowed bg-stone-100 dark:bg-stone-900' : ''}`} 
+                  disabled={hidePrice}
+                  required={!hidePrice} 
+                  placeholder={hidePrice ? "Hidden" : "0.00"}
+                />
               </div>
               
               <div className="md:col-span-2">
@@ -455,7 +483,14 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-5 font-extrabold text-stone-800 dark:text-white">${parseFloat(product.price).toFixed(2)}</td>
+                      <td className="px-6 py-5 font-extrabold text-stone-800 dark:text-white">
+                        {/* UPDATE: Display "Hidden" in table if price is hidden */}
+                        {product.hidePrice ? (
+                          <span className="text-stone-400 text-sm font-bold bg-stone-100 dark:bg-stone-800 px-2 py-1 rounded-md">Hidden</span>
+                        ) : (
+                          `$${parseFloat(product.price).toFixed(2)}`
+                        )}
+                      </td>
                       <td className="px-6 py-5">
                         <span className={`text-xs px-3 py-1.5 rounded-full font-bold inline-block
                           ${product.status === 'in_stock' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' : 
