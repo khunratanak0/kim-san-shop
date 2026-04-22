@@ -47,7 +47,7 @@ export default function ProductCard({
 }) {
   
   // FIX 2: Bulletproof dictionary fallback just in case 'lang' gets mangled
-  const t = dict[lang] || dict['en']; 
+  const t = dict[lang as keyof typeof dict] || dict['en']; 
   
   // Safely handle cases where telegramHandle might be missing on first load
   const safeHandle = telegramHandle || 'your_telegram_username';
