@@ -3,8 +3,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { useTheme } from 'next-themes';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { Trash2, Edit, Plus, Settings, LogOut, Package, Sun, Moon, UploadCloud, Image as ImageIcon, X, FileUp, Loader2 } from 'lucide-react';
+import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { Trash2, Edit, Plus, Settings, LogOut, Package, Sun, Moon, UploadCloud, Image as ImageIcon, X, FileUp, Loader2, ArrowUp } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { theme, setTheme } = useTheme();
@@ -36,7 +36,7 @@ export default function AdminDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [productName, setProductName] = useState('');
   const [category, setCategory] = useState('កំប៉ុង'); 
-  const [isCustomCategory, setIsCustomCategory] = useState(false); // NEW: Toggles text input
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [description, setDescription] = useState('');
   const [descriptionKh, setDescriptionKh] = useState('');
   const [variants, setVariants] = useState<{name: string, price: string}[]>([{ name: 'Standard', price: '' }]);
@@ -47,6 +47,7 @@ export default function AdminDashboard() {
   const [isUploadingCsv, setIsUploadingCsv] = useState(false);
   
   const [products, setProducts] = useState<any[]>([]);
+  const [globalCategories, setGlobalCategories] = useState<string[]>([]); // New: Sync global categories
 
   const t = (en: string, kh: string) => lang === 'kh' ? kh : en;
 
@@ -84,6 +85,7 @@ export default function AdminDashboard() {
         setLogoOffsetY(data.logoOffsetY || 0);
         setHeroImageUrl(data.heroImageUrl || '');
         setHeroImageSize(data.heroImageSize || 128);
+        setGlobalCategories(data.categories || []); // Fetch Categories
       }
     });
 
@@ -97,11 +99,10 @@ export default function AdminDashboard() {
     setProducts(productsData);
   };
 
-  // Get unique categories dynamically to populate the dropdown
   const uniqueCategories = useMemo(() => {
-    const cats = products.map(p => p.category || 'កំប៉ុង');
-    return Array.from(new Set(cats));
-  }, [products]);
+    const cats = new Set([...globalCategories, ...products.map(p => p.category || 'កំប៉ុង')]);
+    return Array.from(cats);
+  }, [products, globalCategories]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +120,7 @@ export default function AdminDashboard() {
         storeName, tagline, taglineKh, telegramHandle, defaultLang,
         logoUrl, logoSize, logoOffsetY, 
         heroImageUrl, heroImageSize 
-      });
+      }, { merge: true }); // Prevent overwriting categories
       alert(t('Settings Saved Successfully!', 'រក្សាទុកការកំណត់ដោយជោគជ័យ!'));
     } catch (error) {
       console.error("Error saving settings", error);
@@ -172,20 +173,15 @@ export default function AdminDashboard() {
     processImage(file, 600, (base64) => { setHeroImageUrl(base64); setIsProcessingHeroImage(false); });
   };
 
-  const addVariant = () => {
-    setVariants([...variants, { name: '', price: '' }]);
-  };
-
+  const addVariant = () => setVariants([...variants, { name: '', price: '' }]);
   const updateVariant = (index: number, field: 'name' | 'price', value: string) => {
     const newVariants = [...variants];
     newVariants[index][field] = value;
     setVariants(newVariants);
   };
-
   const removeVariant = (index: number) => {
     if (variants.length === 1) return;
-    const newVariants = variants.filter((_, i) => i !== index);
-    setVariants(newVariants);
+    setVariants(variants.filter((_, i) => i !== index));
   };
 
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -239,7 +235,7 @@ export default function AdminDashboard() {
           const name = row[nameIdx];
           const description = descIdx !== -1 ? row[descIdx] : '';
           const csvCategory = catIdx !== -1 && row[catIdx] ? row[catIdx] : 'កំប៉ុង'; 
-          const rawVariants = row[varIdx]|| ''; // Add || '' defensive fallback
+          const rawVariants = row[varIdx] || ''; // FIX: Prevent undefined crash
 
           const parsedVariants = rawVariants.split(',').map(v => {
             const [vName, vPrice] = v.split(':');
@@ -286,14 +282,24 @@ export default function AdminDashboard() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const finalCategory = category || 'កំប៉ុង';
+
+      // Push new category to Global settings to prevent the Storefront filter bug
+      if (!globalCategories.includes(finalCategory)) {
+        await setDoc(doc(db, 'settings', 'global'), {
+          categories: arrayUnion(finalCategory)
+        }, { merge: true });
+        setGlobalCategories(prev => [...prev, finalCategory]);
+      }
+
       const formattedVariants = variants.map(v => ({
         name: v.name || 'Standard',
-        price: hidePrice ? 0 : (parseFloat(v.price) || 0)
+        price: hidePrice ? 0 : (parseFloat(v.price) || 0) // FIX: Prevents NaN in database
       }));
 
       const productData = { 
         name: productName, 
-        category: category || 'កំប៉ុង', 
+        category: finalCategory, 
         description, 
         descriptionKh, 
         variants: formattedVariants,
@@ -322,7 +328,6 @@ export default function AdminDashboard() {
     setEditingId(product.id); 
     setProductName(product.name); 
     
-    // Check if category is standard or custom
     const prodCategory = product.category || 'កំប៉ុង';
     setCategory(prodCategory);
     setIsCustomCategory(!uniqueCategories.includes(prodCategory) && prodCategory !== 'កំប៉ុង');
@@ -346,6 +351,17 @@ export default function AdminDashboard() {
     if (window.confirm(t('Are you sure you want to delete this product?', 'តើអ្នកប្រាកដជាចង់លុបផលិតផលនេះទេ?'))) {
       await deleteDoc(doc(db, 'products', id));
       fetchData();
+    }
+  };
+
+  // NEW: Feature to push an item to the top of the Storefront layout
+  const handleBumpToTop = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'products', id), { createdAt: new Date().getTime() });
+      fetchData();
+    } catch (error) {
+      console.error("Error bumping product", error);
+      alert('Failed to reorder item.');
     }
   };
 
@@ -532,7 +548,6 @@ export default function AdminDashboard() {
                 <input value={productName} onChange={(e)=>setProductName(e.target.value)} className={inputClasses} required />
               </div>
 
-              {/* STRICT CATEGORY DROPDOWN */}
               <div className="md:col-span-1">
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Category', 'ប្រភេទ')}</label>
                 
@@ -635,7 +650,7 @@ export default function AdminDashboard() {
                 {imageUrl && (
                   <div className="mt-4 flex items-center gap-4">
                     <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-orange-100 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 shadow-sm">
-                      <img src={imageUrl} alt="Preview" className="object-cover w-full h-full" />
+                      <img src={imageUrl} alt="Preview" className="object-cover w-full h-full" loading="lazy" />
                     </div>
                     <p className="text-xs text-stone-500 font-medium">{t('Image preview ready.', 'រូបភាពត្រៀមរួចរាល់។')}</p>
                   </div>
@@ -696,7 +711,7 @@ export default function AdminDashboard() {
                     <tr key={product.id} className="hover:bg-orange-50/30 dark:hover:bg-stone-800/30 transition-colors group">
                       <td className="px-6 py-5">
                         <div className="flex items-center gap-4">
-                          <img src={product.imageUrl} alt={product.name} className="w-14 h-14 object-cover rounded-2xl border border-stone-100 dark:border-stone-700 bg-white" />
+                          <img src={product.imageUrl} alt={product.name} className="w-14 h-14 object-cover rounded-2xl border border-stone-100 dark:border-stone-700 bg-white" loading="lazy" />
                           <div>
                             <div className="font-bold text-stone-800 dark:text-white mb-1">{product.name}</div>
                             <div className="text-xs text-stone-400 max-w-[250px] truncate">{product.description}</div>
@@ -737,6 +752,11 @@ export default function AdminDashboard() {
                       </td>
                       <td className="px-6 py-5 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                          {/* NEW BUMP TO TOP BUTTON */}
+                          <button onClick={() => handleBumpToTop(product.id)} className="p-2.5 text-blue-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-stone-800 rounded-xl transition-colors" title={t('Move to Top', 'រុញទៅលើគេ')}>
+                            <ArrowUp className="w-4 h-4" />
+                          </button>
+                          
                           <button onClick={() => handleEditClick(product)} className="p-2.5 text-stone-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-stone-800 rounded-xl transition-colors" title={t('Edit', 'កែសម្រួល')}>
                             <Edit className="w-4 h-4" />
                           </button>
