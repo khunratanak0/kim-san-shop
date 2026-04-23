@@ -1,0 +1,8 @@
+can you read and edit this file?
+rn i want you format my Excel Sheet:
+To handle variants in a simple Excel sheet, you will put them in one column separated by a specific character (like a comma). for exmaple:
+Column A (Name): កំស្ពាន់នាគមានជើង
+Column B (Product Category):កំប៉ុង
+Column B (Description): ការពិពណ៌នា
+Column C (Variants): 30cm:780, 27cm:580, 25cm:320, 20cm:210, 16cm:115, 14cm:85
+the above is an exmaple I want you to followish but yeah not every item/product have this many sizes so yeah read and adjust accordingly yeah different sizes have different prices it's not all in cms too some have inch right now it's very messy inside so do it and also everything is in khmer so yeah read and understand everything.

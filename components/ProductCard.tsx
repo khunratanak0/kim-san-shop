@@ -2,12 +2,18 @@
 import { Send, X, ZoomIn } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
+interface Variant {
+  name: string;
+  price: number;
+}
+
 interface Product {
   id: string;
   name: string;
   description: string; 
   descriptionKh?: string; 
-  price: number;
+  price?: number; // Legacy fallback
+  variants?: Variant[];
   hidePrice?: boolean;
   imageUrl: string;
   status: 'in_stock' | 'out_of_stock' | 'check_seller';
@@ -46,13 +52,20 @@ export default function ProductCard({
   lang?: string; 
 }) {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const [isClosing, setIsClosing] = useState(false); // Controls the smooth exit animation
+  const [isClosing, setIsClosing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [selectedVarIdx, setSelectedVarIdx] = useState(0);
 
-  // Safe translation dictionary access
+  // Determine variants to display (fallback to legacy price if variants don't exist)
+  const hasVariants = product.variants && product.variants.length > 0;
+  const displayVariants = hasVariants 
+    ? product.variants! 
+    : [{ name: 'Standard', price: product.price || 0 }];
+    
+  const activeVariant = displayVariants[selectedVarIdx] || displayVariants[0];
+
   const t = dict[lang as keyof typeof dict] || dict['en']; 
   
-  // Choose description based on language
   const displayDescription = lang === 'kh' && product.descriptionKh 
     ? product.descriptionKh 
     : product.description;
@@ -60,9 +73,13 @@ export default function ProductCard({
   const safeHandle = telegramHandle || 'your_telegram_username';
   const cleanHandle = safeHandle.replace('@', '').trim();
   
+  // Format telegram string to include Variant Name
+  const variantText = hasVariants && activeVariant.name !== 'Standard' ? ` (${activeVariant.name})` : '';
+  const fullNameStr = `${product.name}${variantText}`;
+  
   const message = product.hidePrice
-    ? t.msgHidden.replace('{name}', product.name)
-    : t.msgPrice.replace('{name}', product.name).replace('{price}', product.price.toFixed(2));
+    ? t.msgHidden.replace('{name}', fullNameStr)
+    : t.msgPrice.replace('{name}', fullNameStr).replace('{price}', activeVariant.price.toFixed(2));
     
   const encodedMessage = encodeURIComponent(message);
   const telegramUrl = `https://t.me/${cleanHandle}?text=${encodedMessage}`;
@@ -84,46 +101,44 @@ export default function ProductCard({
   const isOutOfStock = product.status === 'out_of_stock';
   const buttonClasses = "w-full flex items-center justify-center gap-2 px-4 py-4 sm:py-3.5 rounded-2xl font-bold text-sm sm:text-base transition-all duration-300 active:scale-[0.98]";
 
-  // Handle Lightbox Open/Close with animation logic
   const openLightbox = () => {
     setIsLightboxOpen(true);
     setIsClosing(false);
-    // Lock background scrolling on mobile
     document.body.style.overflow = 'hidden';
-    // Small delay to trigger the CSS transition
     setTimeout(() => setIsMounted(true), 10);
   };
 
   const closeLightbox = () => {
     setIsClosing(true);
     setIsMounted(false);
-    document.body.style.overflow = 'auto'; // Restore scrolling
-    // Wait for animation to finish before unmounting
+    document.body.style.overflow = 'auto';
     setTimeout(() => {
       setIsLightboxOpen(false);
       setIsClosing(false);
     }, 300);
   };
 
-  // Listen for Escape key to close Lightbox
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isLightboxOpen) closeLightbox();
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    
+    // Add this cleanup function
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'auto'; // Ensures scrolling is restored
+    };
   }, [isLightboxOpen]);
 
   return (
     <>
       <div className="group flex flex-col bg-white dark:bg-stone-900 rounded-3xl overflow-hidden border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-2xl hover:shadow-stone-200 dark:hover:shadow-black/50 hover:-translate-y-1 transition-all duration-500 relative">
         
-        {/* Image Container with Zoom Trigger */}
         <div 
           onClick={openLightbox}
           className="relative aspect-square w-full overflow-hidden bg-stone-100 dark:bg-stone-950 flex items-center justify-center cursor-zoom-in"
         >
-          {/* Zoom Icon Overlay - Shows on hover on desktop, always subtly visible on mobile */}
           <div className="absolute top-3 right-3 z-20 bg-black/30 backdrop-blur-md p-2.5 sm:p-2 rounded-full sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             <ZoomIn className="w-5 h-5 sm:w-4 sm:h-4 text-white" />
           </div>
@@ -148,7 +163,7 @@ export default function ProductCard({
               {product.hidePrice ? (
                 <span className="text-[10px] sm:text-[11px] px-2.5 py-1.5 font-bold tracking-wider bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-lg">{t.dmPrice}</span>
               ) : (
-                `$${product.price.toFixed(2)}`
+                `$${activeVariant.price.toFixed(2)}`
               )}
             </span>
           </div>
@@ -157,9 +172,28 @@ export default function ProductCard({
             {getStatusBadge()}
           </div>
           
-          <p className="text-sm sm:text-base text-stone-500 dark:text-stone-400 flex-grow mb-6 leading-relaxed whitespace-pre-wrap">
+          <p className="text-sm sm:text-base text-stone-500 dark:text-stone-400 flex-grow mb-5 leading-relaxed whitespace-pre-wrap">
             {displayDescription}
           </p>
+
+          {/* Variant Selection Chips */}
+          {hasVariants && displayVariants.length > 1 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {displayVariants.map((v, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedVarIdx(idx)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all duration-300 ${
+                    selectedVarIdx === idx 
+                      ? 'bg-orange-400 text-white border-orange-400 shadow-md shadow-orange-400/20' 
+                      : 'bg-stone-50 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700 hover:border-orange-300 dark:hover:border-orange-500/50'
+                  }`}
+                >
+                  {v.name}
+                </button>
+              ))}
+            </div>
+          )}
           
           {isOutOfStock ? (
             <button disabled className={`${buttonClasses} bg-stone-50 text-stone-400 dark:bg-stone-800/50 dark:text-stone-500 cursor-not-allowed`}>
@@ -171,7 +205,7 @@ export default function ProductCard({
               href={telegramUrl} 
               target="_blank" 
               rel="noopener noreferrer"
-              className={`${buttonClasses} bg-[#2AABEE] text-white hover:bg-[#229ED9] shadow-lg shadow-[#2AABEE]/20 hover:shadow-[#2AABEE]/40`}
+              className={`${buttonClasses} bg-[#2AABEE] text-white hover:bg-[#229ED9] shadow-lg shadow-[#2AABEE]/20 hover:shadow-[#2AABEE]/40 mt-auto`}
             >
               <Send className="w-5 h-5 sm:w-4 sm:h-4" />
               {t.inquire}
@@ -180,13 +214,11 @@ export default function ProductCard({
         </div>
       </div>
 
-      {/* Smooth Animated Lightbox Modal */}
       {isLightboxOpen && (
         <div 
           className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-lg p-4 sm:p-8 transition-opacity duration-300 ease-out ${isMounted && !isClosing ? 'opacity-100' : 'opacity-0'}`} 
           onClick={closeLightbox}
         >
-          {/* Close Button */}
           <button 
             className={`absolute top-4 sm:top-6 right-4 sm:right-6 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-full transition-all duration-300 z-[101] ${isMounted && !isClosing ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}`}
             onClick={(e) => { e.stopPropagation(); closeLightbox(); }}
@@ -195,7 +227,6 @@ export default function ProductCard({
             <X className="w-6 h-6 text-white" />
           </button>
           
-          {/* Expanded Image */}
           <img 
             src={product.imageUrl} 
             className={`max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl transition-all duration-300 cubic-bezier(0.16, 1, 0.3, 1) ${isMounted && !isClosing ? 'scale-100 translate-y-0 blur-none opacity-100' : 'scale-90 translate-y-8 blur-sm opacity-0'}`} 

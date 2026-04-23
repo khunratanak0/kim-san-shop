@@ -1,10 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useTheme } from 'next-themes';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, addDoc, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { Trash2, Edit, Plus, Settings, LogOut, Package, Sun, Moon, UploadCloud, Image as ImageIcon, X } from 'lucide-react'; 
+import { Trash2, Edit, Plus, Settings, LogOut, Package, Sun, Moon, UploadCloud, Image as ImageIcon, X, FileUp, Loader2 } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { theme, setTheme } = useTheme();
@@ -19,7 +19,7 @@ export default function AdminDashboard() {
   // Store Settings State
   const [storeName, setStoreName] = useState('');
   const [tagline, setTagline] = useState('');
-  const [taglineKh, setTaglineKh] = useState(''); // NEW: Khmer Tagline
+  const [taglineKh, setTaglineKh] = useState('');
   const [telegramHandle, setTelegramHandle] = useState('');
   const [defaultLang, setDefaultLang] = useState('en'); 
   
@@ -35,13 +35,16 @@ export default function AdminDashboard() {
   // Product Form State
   const [editingId, setEditingId] = useState<string | null>(null);
   const [productName, setProductName] = useState('');
+  const [category, setCategory] = useState('កំប៉ុង'); 
+  const [isCustomCategory, setIsCustomCategory] = useState(false); // NEW: Toggles text input
   const [description, setDescription] = useState('');
   const [descriptionKh, setDescriptionKh] = useState('');
-  const [price, setPrice] = useState('');
+  const [variants, setVariants] = useState<{name: string, price: string}[]>([{ name: 'Standard', price: '' }]);
   const [hidePrice, setHidePrice] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [status, setStatus] = useState('in_stock');
   const [isProcessingImage, setIsProcessingImage] = useState(false);
+  const [isUploadingCsv, setIsUploadingCsv] = useState(false);
   
   const [products, setProducts] = useState<any[]>([]);
 
@@ -73,7 +76,7 @@ export default function AdminDashboard() {
         const data = doc.data();
         setStoreName(data.storeName || '');
         setTagline(data.tagline || '');
-        setTaglineKh(data.taglineKh || ''); // NEW
+        setTaglineKh(data.taglineKh || '');
         setTelegramHandle(data.telegramHandle || '');
         setDefaultLang(data.defaultLang || 'en');
         setLogoUrl(data.logoUrl || '');
@@ -85,10 +88,20 @@ export default function AdminDashboard() {
     });
 
     const querySnapshot = await getDocs(collection(db, 'products'));
-    const productsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const productsData = querySnapshot.docs.map(doc => ({ 
+      id: doc.id, 
+      category: doc.data().category || 'កំប៉ុង', 
+      ...doc.data() 
+    }));
     productsData.sort((a: any, b: any) => b.createdAt - a.createdAt);
     setProducts(productsData);
   };
+
+  // Get unique categories dynamically to populate the dropdown
+  const uniqueCategories = useMemo(() => {
+    const cats = products.map(p => p.category || 'កំប៉ុង');
+    return Array.from(new Set(cats));
+  }, [products]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +116,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     try {
       await setDoc(doc(db, 'settings', 'global'), { 
-        storeName, tagline, taglineKh, telegramHandle, defaultLang, // Added taglineKh
+        storeName, tagline, taglineKh, telegramHandle, defaultLang,
         logoUrl, logoSize, logoOffsetY, 
         heroImageUrl, heroImageSize 
       });
@@ -159,14 +172,132 @@ export default function AdminDashboard() {
     processImage(file, 600, (base64) => { setHeroImageUrl(base64); setIsProcessingHeroImage(false); });
   };
 
+  const addVariant = () => {
+    setVariants([...variants, { name: '', price: '' }]);
+  };
+
+  const updateVariant = (index: number, field: 'name' | 'price', value: string) => {
+    const newVariants = [...variants];
+    newVariants[index][field] = value;
+    setVariants(newVariants);
+  };
+
+  const removeVariant = (index: number) => {
+    if (variants.length === 1) return;
+    const newVariants = variants.filter((_, i) => i !== index);
+    setVariants(newVariants);
+  };
+
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingCsv(true);
+    const reader = new FileReader();
+    
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parseRow = (rowStr: string) => {
+          const result = [];
+          let current = '';
+          let inQuotes = false;
+          for (let i = 0; i < rowStr.length; i++) {
+            if (rowStr[i] === '"') {
+              inQuotes = !inQuotes;
+            } else if (rowStr[i] === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = '';
+            } else {
+              current += rowStr[i];
+            }
+          }
+          result.push(current.trim());
+          return result;
+        };
+
+        const lines = text.split('\n').filter(line => line.trim() !== '');
+        const headers = parseRow(lines[0]).map(h => h.toLowerCase());
+        
+        const nameIdx = headers.findIndex(h => h.includes('name'));
+        const descIdx = headers.findIndex(h => h.includes('description'));
+        const catIdx = headers.findIndex(h => h.includes('category')); 
+        const varIdx = headers.findIndex(h => h.includes('variant'));
+
+        if (nameIdx === -1 || varIdx === -1) {
+          alert('CSV must contain "Name" and "Variants" columns.');
+          setIsUploadingCsv(false);
+          return;
+        }
+
+        const uploadPromises = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const row = parseRow(lines[i]);
+          if (!row[nameIdx]) continue;
+
+          const name = row[nameIdx];
+          const description = descIdx !== -1 ? row[descIdx] : '';
+          const csvCategory = catIdx !== -1 && row[catIdx] ? row[catIdx] : 'កំប៉ុង'; 
+          const rawVariants = row[varIdx]|| ''; // Add || '' defensive fallback
+
+          const parsedVariants = rawVariants.split(',').map(v => {
+            const [vName, vPrice] = v.split(':');
+            return {
+              name: vName ? vName.trim() : 'Standard',
+              price: vPrice ? parseFloat(vPrice.trim()) : 0
+            };
+          }).filter(v => v.name && !isNaN(v.price));
+
+          if (parsedVariants.length === 0) {
+            parsedVariants.push({ name: 'Standard', price: 0 });
+          }
+
+          const productData = {
+            name,
+            category: csvCategory,
+            description,
+            descriptionKh: '',
+            variants: parsedVariants,
+            price: parsedVariants[0].price, 
+            hidePrice: false,
+            imageUrl: '', 
+            status: 'in_stock',
+            createdAt: new Date().getTime()
+          };
+
+          uploadPromises.push(addDoc(collection(db, 'products'), productData));
+        }
+
+        await Promise.all(uploadPromises);
+        alert(`Successfully imported ${uploadPromises.length} products!`);
+        fetchData();
+      } catch (error) {
+        console.error("CSV Import Error:", error);
+        alert("Failed to parse CSV. Ensure it is formatted correctly.");
+      } finally {
+        setIsUploadingCsv(false);
+        e.target.value = ''; 
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const formattedVariants = variants.map(v => ({
+        name: v.name || 'Standard',
+        price: hidePrice ? 0 : (parseFloat(v.price) || 0)
+      }));
+
       const productData = { 
         name: productName, 
+        category: category || 'កំប៉ុង', 
         description, 
         descriptionKh, 
-        price: hidePrice ? 0 : parseFloat(price), 
+        variants: formattedVariants,
+        price: formattedVariants[0]?.price || 0, 
         hidePrice, 
         imageUrl, 
         status 
@@ -190,9 +321,21 @@ export default function AdminDashboard() {
   const handleEditClick = (product: any) => {
     setEditingId(product.id); 
     setProductName(product.name); 
+    
+    // Check if category is standard or custom
+    const prodCategory = product.category || 'កំប៉ុង';
+    setCategory(prodCategory);
+    setIsCustomCategory(!uniqueCategories.includes(prodCategory) && prodCategory !== 'កំប៉ុង');
+
     setDescription(product.description);
     setDescriptionKh(product.descriptionKh || '');
-    setPrice(product.price ? product.price.toString() : ''); 
+    
+    if (product.variants && product.variants.length > 0) {
+      setVariants(product.variants.map((v: any) => ({ name: v.name, price: v.price.toString() })));
+    } else {
+      setVariants([{ name: 'Standard', price: product.price ? product.price.toString() : '0' }]);
+    }
+    
     setHidePrice(product.hidePrice || false);
     setImageUrl(product.imageUrl); 
     setStatus(product.status);
@@ -209,9 +352,11 @@ export default function AdminDashboard() {
   const resetForm = () => {
     setEditingId(null); 
     setProductName(''); 
+    setCategory('កំប៉ុង'); 
+    setIsCustomCategory(false);
     setDescription(''); 
     setDescriptionKh(''); 
-    setPrice(''); 
+    setVariants([{ name: 'Standard', price: '' }]); 
     setHidePrice(false); 
     setImageUrl(''); 
     setStatus('in_stock');
@@ -259,6 +404,12 @@ export default function AdminDashboard() {
             <p className="text-stone-500 dark:text-stone-400 mt-1">{t('Manage your storefront settings and inventory.', 'គ្រប់គ្រងការកំណត់ហាង និងបញ្ជីសារពើភណ្ឌរបស់អ្នក។')}</p>
           </div>
           <div className="flex items-center gap-3">
+            <label className={`cursor-pointer relative overflow-hidden flex items-center gap-2 px-5 py-3 bg-stone-800 text-white dark:bg-stone-100 dark:text-stone-900 rounded-xl hover:opacity-90 transition-opacity font-bold text-sm ${isUploadingCsv ? 'opacity-50 pointer-events-none' : ''}`}>
+              {isUploadingCsv ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+              {isUploadingCsv ? t('Importing...', 'កំពុងនាំចូល...') : t('Bulk Import CSV', 'នាំចូល CSV ជាដុំ')}
+              <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" disabled={isUploadingCsv} />
+            </label>
+
             {mounted && (
               <button onClick={toggleLang} className="relative overflow-hidden w-11 h-11 bg-orange-50 text-orange-400 dark:bg-stone-800 dark:text-stone-300 rounded-xl hover:bg-orange-100 dark:hover:bg-stone-700 transition-colors flex items-center justify-center font-bold text-sm">
                 <span className={`absolute transition-all duration-500 ${lang === 'en' ? 'translate-y-0 opacity-100 scale-100' : '-translate-y-8 opacity-0 scale-75'}`}>EN</span>
@@ -278,7 +429,6 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           
-          {/* Settings Column */}
           <div className="bg-white dark:bg-stone-900 p-8 rounded-3xl shadow-sm border border-orange-50 dark:border-stone-800 xl:col-span-1 h-fit">
             <div className="flex items-center gap-3 mb-8">
               <div className="p-2 bg-orange-50 dark:bg-stone-800 rounded-lg"><Settings className="w-5 h-5 text-orange-400" /></div>
@@ -286,7 +436,6 @@ export default function AdminDashboard() {
             </div>
             <form onSubmit={handleSaveSettings} className="flex flex-col gap-6">
               
-              {/* HEADER LOGO */}
               <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold text-stone-400 uppercase">{t('Header Logo', 'ឡូហ្គោខាងលើ')}</label>
@@ -315,7 +464,6 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* HERO IMAGE */}
               <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold text-stone-400 uppercase">{t('Hero Image (Above Title)', 'រូបភាពកណ្តាល (ខាងលើចំណងជើង)')}</label>
@@ -343,7 +491,6 @@ export default function AdminDashboard() {
                 <input value={storeName} onChange={(e)=>setStoreName(e.target.value)} className={inputClasses} required />
               </div>
 
-              {/* SPLIT TAGLINE INPUTS */}
               <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Tagline (English)', 'ពាក្យស្លោក (អង់គ្លេស)')}</label>
@@ -370,7 +517,6 @@ export default function AdminDashboard() {
             </form>
           </div>
 
-          {/* Product Form Column */}
           <div className="bg-white dark:bg-stone-900 p-8 rounded-3xl shadow-sm border border-orange-50 dark:border-stone-800 xl:col-span-2">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
@@ -385,16 +531,95 @@ export default function AdminDashboard() {
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Product Name', 'ឈ្មោះផលិតផល')}</label>
                 <input value={productName} onChange={(e)=>setProductName(e.target.value)} className={inputClasses} required />
               </div>
-              
+
+              {/* STRICT CATEGORY DROPDOWN */}
               <div className="md:col-span-1">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-xs font-bold text-stone-400 uppercase">{t('Price ($)', 'តម្លៃ ($)')}</label>
+                <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Category', 'ប្រភេទ')}</label>
+                
+                <select 
+                  value={isCustomCategory ? 'new_custom' : category} 
+                  onChange={(e) => {
+                    if (e.target.value === 'new_custom') {
+                      setIsCustomCategory(true);
+                      setCategory('');
+                    } else {
+                      setIsCustomCategory(false);
+                      setCategory(e.target.value);
+                    }
+                  }} 
+                  className={inputClasses} 
+                  required 
+                >
+                  <option value="" disabled>{t('Select a Category', 'ជ្រើសរើសប្រភេទ')}</option>
+                  {uniqueCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                  <option value="new_custom" className="font-bold text-orange-500">+ {t('Add New Category', 'បន្ថែមប្រភេទថ្មី')}</option>
+                </select>
+
+                {isCustomCategory && (
+                  <input 
+                    type="text"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    placeholder={t("Type new category...", "វាយបញ្ចូលប្រភេទថ្មី...")}
+                    className={`${inputClasses} mt-3 border-orange-300 ring-2 ring-orange-400/20`}
+                    required
+                    autoFocus
+                  />
+                )}
+              </div>
+
+              <div className="md:col-span-2 p-5 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800">
+                <div className="flex justify-between items-center mb-4">
+                  <label className="text-xs font-bold text-stone-400 uppercase">{t('Variants & Prices', 'ប្រភេទ និងតម្លៃ')}</label>
                   <label className="flex items-center gap-1.5 text-xs font-bold text-stone-500 hover:text-orange-400 cursor-pointer transition-colors">
                     <input type="checkbox" checked={hidePrice} onChange={(e) => setHidePrice(e.target.checked)} className="w-3.5 h-3.5 accent-orange-400" />
-                    {t('Hide Price (Ask Seller)', 'លាក់តម្លៃ (សួរអ្នកលក់)')}
+                    {t('Hide Prices (Ask Seller)', 'លាក់តម្លៃ (សួរអ្នកលក់)')}
                   </label>
                 </div>
-                <input value={price} type="number" step="0.01" onChange={(e)=>setPrice(e.target.value)} className={`${inputClasses} ${hidePrice ? 'opacity-50 cursor-not-allowed bg-stone-100 dark:bg-stone-900' : ''}`} disabled={hidePrice} required={!hidePrice} placeholder={hidePrice ? t("Hidden", "លាក់") : "0.00"} />
+                
+                <div className="space-y-3">
+                  {variants.map((variant, idx) => (
+                    <div key={idx} className="flex items-center gap-3">
+                      <input 
+                        value={variant.name} 
+                        onChange={(e) => updateVariant(idx, 'name', e.target.value)} 
+                        placeholder={t("Variant Name (e.g., 30cm, Red)", "ឈ្មោះប្រភេទ (ឧ. 30cm, ក្រហម)")} 
+                        className={`${inputClasses} flex-1`} 
+                        required 
+                      />
+                      <div className="relative w-1/3">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">$</span>
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          value={variant.price} 
+                          onChange={(e) => updateVariant(idx, 'price', e.target.value)} 
+                          className={`${inputClasses} pl-8 ${hidePrice ? 'opacity-50 bg-stone-100 dark:bg-stone-900' : ''}`} 
+                          required={!hidePrice} 
+                          disabled={hidePrice}
+                          placeholder="0.00" 
+                        />
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => removeVariant(idx)} 
+                        disabled={variants.length === 1}
+                        className={`p-3.5 rounded-xl border transition-colors ${variants.length === 1 ? 'border-stone-100 text-stone-300 dark:border-stone-800 dark:text-stone-700' : 'border-red-100 text-red-400 hover:bg-red-50 dark:border-red-900/30 dark:hover:bg-red-500/10'}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button 
+                  type="button" 
+                  onClick={addVariant} 
+                  className="mt-4 flex items-center gap-2 text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors px-1"
+                >
+                  <Plus className="w-4 h-4" /> {t('Add Variant', 'បន្ថែមប្រភេទ')}
+                </button>
               </div>
               
               <div className="md:col-span-2">
@@ -412,7 +637,7 @@ export default function AdminDashboard() {
                     <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-orange-100 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 shadow-sm">
                       <img src={imageUrl} alt="Preview" className="object-cover w-full h-full" />
                     </div>
-                    <p className="text-xs text-stone-500 font-medium">{t('Image preview ready.', 'រូបភាពត្រៀមជាស្រេច។')}</p>
+                    <p className="text-xs text-stone-500 font-medium">{t('Image preview ready.', 'រូបភាពត្រៀមរួចរាល់។')}</p>
                   </div>
                 )}
               </div>
@@ -446,7 +671,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Enhanced Inventory Table */}
         <div className="bg-white dark:bg-stone-900 rounded-3xl shadow-sm border border-orange-50 dark:border-stone-800 overflow-hidden">
           <div className="p-6 border-b border-orange-50 dark:border-stone-800 flex justify-between items-center bg-stone-50/50 dark:bg-stone-950/50">
             <h2 className="text-xl font-bold text-stone-800 dark:text-white">{t('Inventory Management', 'ការគ្រប់គ្រងបញ្ជីសារពើភណ្ឌ')}</h2>
@@ -458,14 +682,15 @@ export default function AdminDashboard() {
               <thead className="bg-stone-50 dark:bg-stone-950 text-stone-400 text-xs uppercase tracking-wider">
                 <tr>
                   <th className="px-6 py-5 font-bold">{t('Product', 'ផលិតផល')}</th>
-                  <th className="px-6 py-5 font-bold">{t('Price', 'តម្លៃ')}</th>
+                  <th className="px-6 py-5 font-bold">{t('Category', 'ប្រភេទ')}</th>
+                  <th className="px-6 py-5 font-bold">{t('Variants & Prices', 'ប្រភេទ និងតម្លៃ')}</th>
                   <th className="px-6 py-5 font-bold">{t('Status', 'ស្ថានភាព')}</th>
                   <th className="px-6 py-5 font-bold text-right">{t('Actions', 'សកម្មភាព')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50 dark:divide-stone-800/50">
                 {products.length === 0 ? (
-                  <tr><td colSpan={4} className="px-6 py-12 text-center text-stone-400 font-medium">{t('No products found. Add one above!', 'រកមិនឃើញផលិតផលទេ។ បន្ថែមមួយខាងលើ!')}</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-12 text-center text-stone-400 font-medium">{t('No products found. Add one above!', 'រកមិនឃើញផលិតផលទេ។ បន្ថែមមួយខាងលើ!')}</td></tr>
                 ) : (
                   products.map(product => (
                     <tr key={product.id} className="hover:bg-orange-50/30 dark:hover:bg-stone-800/30 transition-colors group">
@@ -478,10 +703,27 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-5 font-extrabold text-stone-800 dark:text-white">
+                      <td className="px-6 py-5">
+                        <span className="bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300 px-2.5 py-1 rounded-md text-xs font-bold">
+                          {product.category || 'កំប៉ុង'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-5">
                         {product.hidePrice ? (
                           <span className="text-stone-400 text-sm font-bold bg-stone-100 dark:bg-stone-800 px-2 py-1 rounded-md">{t('Hidden', 'លាក់')}</span>
-                        ) : `$${parseFloat(product.price).toFixed(2)}`}
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {product.variants && product.variants.length > 0 ? (
+                              product.variants.map((v: any, i: number) => (
+                                <span key={i} className="text-[10px] font-bold bg-orange-50 text-orange-600 dark:bg-stone-800 dark:text-orange-400 px-2 py-1 rounded-lg">
+                                  {v.name}: ${parseFloat(v.price).toFixed(2)}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="font-extrabold text-stone-800 dark:text-white">${parseFloat(product.price).toFixed(2)}</span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-5">
                         <span className={`text-xs px-3 py-1.5 rounded-full font-bold inline-block

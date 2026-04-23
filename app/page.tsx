@@ -1,13 +1,11 @@
 'use client';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-// NEW IMPORTS: query, orderBy, limit, startAfter
 import { collection, getDocs, doc, getDoc, query, orderBy, limit, startAfter } from 'firebase/firestore';
 import { Search, FilterX, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
 
-// SKELETON COMPONENT
 const SkeletonCard = () => (
   <div className="bg-white dark:bg-stone-900 rounded-3xl h-[450px] animate-pulse flex flex-col border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
     <div className="w-full aspect-square bg-stone-100 dark:bg-stone-950 mb-4"></div>
@@ -30,7 +28,7 @@ export default function Storefront() {
   const [settings, setSettings] = useState({
     storeName: 'KIM SAN SHOP CATALOG',
     tagline: 'Curated excellence. Discover our exclusive collection.',
-    taglineKh: '', // Add this line
+    taglineKh: '', 
     telegramHandle: 'your_telegram_username',
     logoUrl: '', logoSize: 48, logoOffsetY: 0,
     heroImageUrl: '', heroImageSize: 128,
@@ -40,8 +38,8 @@ export default function Storefront() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all'); // Category state
 
-  // PAGINATION STATE
   const [lastDoc, setLastDoc] = useState<any>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -66,18 +64,23 @@ export default function Storefront() {
           else if (data.defaultLang) setLang(data.defaultLang);
         }
         
-        // PAGINATION: Limit to 15 items initially
         const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'), limit(15));
         const querySnapshot = await getDocs(q);
         
-        const productsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Ensures old items default to កំប៉ុង if they have no category
+        const productsData = querySnapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          category: doc.data().category || 'កំប៉ុង',
+          ...doc.data() 
+        }));
+        
         setProducts(productsData);
         
         if (querySnapshot.docs.length > 0) {
           setLastDoc(querySnapshot.docs[querySnapshot.docs.length - 1]);
         }
         if (querySnapshot.docs.length < 15) {
-          setHasMore(false); // No more documents to fetch
+          setHasMore(false); 
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -99,7 +102,11 @@ export default function Storefront() {
         limit(15)
       );
       const querySnapshot = await getDocs(q);
-      const newProducts = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const newProducts = querySnapshot.docs.map(doc => ({ 
+        id: doc.id, 
+        category: doc.data().category || 'កំប៉ុង',
+        ...doc.data() 
+      }));
       
       setProducts(prev => [...prev, ...newProducts]);
       
@@ -116,14 +123,22 @@ export default function Storefront() {
     }
   };
 
+  // Get unique categories dynamically
+  const uniqueCategories = useMemo(() => {
+    const cats = products.map(p => p.category || 'កំប៉ុង');
+    return Array.from(new Set(cats));
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             product.description.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStock = stockFilter === 'all' || product.status === stockFilter;
-      return matchesSearch && matchesStock;
+      const matchesCategory = categoryFilter === 'all' || (product.category || 'កំប៉ុង') === categoryFilter;
+      
+      return matchesSearch && matchesStock && matchesCategory;
     });
-  }, [products, searchQuery, stockFilter]);
+  }, [products, searchQuery, stockFilter, categoryFilter]);
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-300 selection:bg-orange-200 selection:text-orange-900">
@@ -135,12 +150,14 @@ export default function Storefront() {
             <img src={settings.heroImageUrl} alt={`${settings.storeName} Hero`} className="mb-8 object-contain drop-shadow-sm transition-all duration-300" style={{ height: `${settings.heroImageSize}px` }} />
           )}
           <h1 className="text-4xl md:text-5xl font-extrabold text-stone-800 dark:text-white mb-6 tracking-tight uppercase">{settings.storeName}</h1>
-          <p className="text-lg text-stone-500 dark:text-stone-400 leading-relaxed">{settings.tagline}
+          <p className="text-lg text-stone-500 dark:text-stone-400 leading-relaxed">
             {lang === 'kh' && settings.taglineKh ? settings.taglineKh : settings.tagline}
           </p>
         </div>
 
-        <div className="max-w-4xl mx-auto mb-12 flex flex-col sm:flex-row gap-4 bg-white dark:bg-stone-900 p-2 rounded-2xl md:rounded-full border border-stone-100 dark:border-stone-800 shadow-sm sticky top-24 z-40">
+        {/* STICKY SEARCH & FILTER BAR */}
+        <div className="max-w-5xl mx-auto mb-12 flex flex-col md:flex-row gap-4 bg-white dark:bg-stone-900 p-2 rounded-2xl md:rounded-full border border-stone-100 dark:border-stone-800 shadow-sm sticky top-24 z-40">
+          
           <div className="flex-1 relative flex items-center">
             <Search className="w-5 h-5 text-stone-400 absolute left-4" />
             <input 
@@ -151,13 +168,24 @@ export default function Storefront() {
               className="w-full pl-12 pr-4 py-3 bg-transparent border-none outline-none text-stone-800 dark:text-white placeholder-stone-400 text-sm font-medium"
             />
           </div>
-          <div className="sm:border-l border-stone-100 dark:border-stone-800 pl-2">
+          
+          <div className="flex flex-col sm:flex-row gap-2 md:border-l border-stone-100 dark:border-stone-800 md:pl-2">
+            {/* PROMINENT CATEGORY DROPDOWN */}
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full sm:w-auto px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 rounded-xl md:rounded-full text-sm font-bold text-stone-600 dark:text-stone-300 outline-none focus:ring-2 focus:ring-orange-400/20 cursor-pointer">
+              <option value="all">{t('All Categories', 'ប្រភេទទាំងអស់')}</option>
+              {uniqueCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+
+            {/* STOCK DROPDOWN */}
             <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} className="w-full sm:w-auto px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 rounded-xl md:rounded-full text-sm font-bold text-stone-600 dark:text-stone-300 outline-none focus:ring-2 focus:ring-orange-400/20 cursor-pointer">
               <option value="all">{t('All Items', 'ទំនិញទាំងអស់')}</option>
               <option value="in_stock">{t('In Stock Only', 'មានក្នុងស្តុកតែប៉ុណ្ណោះ')}</option>
               <option value="check_seller">{t('Ask Seller', 'សួរអ្នកលក់')}</option>
             </select>
           </div>
+
         </div>
 
         {/* Skeleton Loading State */}
@@ -177,7 +205,7 @@ export default function Storefront() {
             </div>
             <p className="text-lg font-bold text-stone-800 dark:text-white mb-2">{t('No products found.', 'រកមិនឃើញផលិតផលទេ។')}</p>
             <p className="text-stone-500 text-sm mb-6">{t("We couldn't find anything matching", "យើងមិនអាចរកឃើញអ្វីដែលត្រូវគ្នានឹង")} "{searchQuery}".</p>
-            <button onClick={() => { setSearchQuery(''); setStockFilter('all'); }} className="px-6 py-2.5 bg-orange-50 dark:bg-stone-800 text-orange-500 dark:text-orange-400 font-bold rounded-xl hover:bg-orange-100 dark:hover:bg-stone-700 transition-colors text-sm">
+            <button onClick={() => { setSearchQuery(''); setStockFilter('all'); setCategoryFilter('all'); }} className="px-6 py-2.5 bg-orange-50 dark:bg-stone-800 text-orange-500 dark:text-orange-400 font-bold rounded-xl hover:bg-orange-100 dark:hover:bg-stone-700 transition-colors text-sm">
               {t('Clear Filters', 'ជម្រះតម្រង')}
             </button>
           </div>
@@ -189,8 +217,7 @@ export default function Storefront() {
               ))}
             </div>
             
-            {/* LOAD MORE BUTTON */}
-            {hasMore && searchQuery === '' && stockFilter === 'all' && (
+            {hasMore && searchQuery === '' && stockFilter === 'all' && categoryFilter === 'all' && (
               <div className="flex justify-center mt-8">
                 <button 
                   onClick={loadMoreProducts}
