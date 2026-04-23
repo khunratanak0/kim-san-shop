@@ -1,10 +1,12 @@
 'use client';
-import { Send } from 'lucide-react';
+import { Send, X, ZoomIn } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface Product {
   id: string;
   name: string;
-  description: string;
+  description: string; 
+  descriptionKh?: string; 
   price: number;
   hidePrice?: boolean;
   imageUrl: string;
@@ -13,19 +15,19 @@ interface Product {
 
 const dict = {
   en: {
-    dmPrice: "DM for Price",
+    dmPrice: "DM FOR PRICE",
     inStock: "IN STOCK",
     outOfStock: "OUT OF STOCK",
     askSeller: "ASK SELLER",
-    unavailable: "Currently Unavailable",
+    unavailable: "CURRENTLY UNAVAILABLE",
     inquire: "Inquire via Telegram",
     msgHidden: "Hi, I am interested in *{name}*. Can you provide the price and availability?",
     msgPrice: "Hi, I am interested in *{name}* priced at ${price}. Is it available?"
   },
-  km: {
+  kh: {
     dmPrice: "ឆាតសួរតម្លៃ",
-    inStock: "មានស្តុក",
-    outOfStock: "អស់ស្តុក",
+    inStock: "មានក្នុងស្តុក",
+    outOfStock: "អស់ពីស្តុក",
     askSeller: "សួរអ្នកលក់",
     unavailable: "បច្ចុប្បន្នមិនមាន",
     inquire: "សួរតាម Telegram",
@@ -37,19 +39,24 @@ const dict = {
 export default function ProductCard({ 
   product, 
   telegramHandle, 
-  // FIX 1: Provide a default value so it's never undefined
   lang = 'en' 
 }: { 
   product: Product; 
   telegramHandle: string; 
-  // Make it optional in TypeScript so it doesn't yell if missed
   lang?: string; 
 }) {
-  
-  // FIX 2: Bulletproof dictionary fallback just in case 'lang' gets mangled
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false); // Controls the smooth exit animation
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Safe translation dictionary access
   const t = dict[lang as keyof typeof dict] || dict['en']; 
   
-  // Safely handle cases where telegramHandle might be missing on first load
+  // Choose description based on language
+  const displayDescription = lang === 'kh' && product.descriptionKh 
+    ? product.descriptionKh 
+    : product.description;
+
   const safeHandle = telegramHandle || 'your_telegram_username';
   const cleanHandle = safeHandle.replace('@', '').trim();
   
@@ -61,7 +68,7 @@ export default function ProductCard({
   const telegramUrl = `https://t.me/${cleanHandle}?text=${encodedMessage}`;
 
   const getStatusBadge = () => {
-    const baseClasses = "text-[11px] px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 uppercase tracking-wider w-fit";
+    const baseClasses = "text-[11px] sm:text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 uppercase tracking-wider w-fit";
     switch (product.status) {
       case 'in_stock':
         return <span className={`${baseClasses} bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20`}><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>{t.inStock}</span>;
@@ -75,62 +82,128 @@ export default function ProductCard({
   };
 
   const isOutOfStock = product.status === 'out_of_stock';
-  const buttonClasses = "w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 active:scale-[0.98]";
+  const buttonClasses = "w-full flex items-center justify-center gap-2 px-4 py-4 sm:py-3.5 rounded-2xl font-bold text-sm sm:text-base transition-all duration-300 active:scale-[0.98]";
+
+  // Handle Lightbox Open/Close with animation logic
+  const openLightbox = () => {
+    setIsLightboxOpen(true);
+    setIsClosing(false);
+    // Lock background scrolling on mobile
+    document.body.style.overflow = 'hidden';
+    // Small delay to trigger the CSS transition
+    setTimeout(() => setIsMounted(true), 10);
+  };
+
+  const closeLightbox = () => {
+    setIsClosing(true);
+    setIsMounted(false);
+    document.body.style.overflow = 'auto'; // Restore scrolling
+    // Wait for animation to finish before unmounting
+    setTimeout(() => {
+      setIsLightboxOpen(false);
+      setIsClosing(false);
+    }, 300);
+  };
+
+  // Listen for Escape key to close Lightbox
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isLightboxOpen) closeLightbox();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLightboxOpen]);
 
   return (
-    <div className="group flex flex-col bg-white dark:bg-stone-900 rounded-3xl overflow-hidden border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-2xl hover:shadow-stone-200 dark:hover:shadow-black/50 hover:-translate-y-1 transition-all duration-500">
-      
-      <div className="relative aspect-square w-full overflow-hidden bg-stone-100 dark:bg-stone-950 flex items-center justify-center">
+    <>
+      <div className="group flex flex-col bg-white dark:bg-stone-900 rounded-3xl overflow-hidden border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-2xl hover:shadow-stone-200 dark:hover:shadow-black/50 hover:-translate-y-1 transition-all duration-500 relative">
+        
+        {/* Image Container with Zoom Trigger */}
         <div 
-          className="absolute inset-0 bg-cover bg-center opacity-40 dark:opacity-30 blur-2xl scale-110 saturate-150" 
-          style={{ backgroundImage: `url(${product.imageUrl})` }}
-        />
-        <img 
-          src={product.imageUrl} 
-          alt={product.name} 
-          className="relative z-10 max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] object-contain rounded-2xl group-hover:scale-105 transition-transform duration-700 ease-out shadow-2xl"
-          loading="lazy"
-        />
-      </div>
-      
-      <div className="p-6 flex flex-col flex-grow">
-        <div className="flex justify-between items-start gap-4 mb-2">
-          <h3 className="text-lg font-bold text-stone-800 dark:text-stone-100 tracking-tight leading-tight">{product.name}</h3>
+          onClick={openLightbox}
+          className="relative aspect-square w-full overflow-hidden bg-stone-100 dark:bg-stone-950 flex items-center justify-center cursor-zoom-in"
+        >
+          {/* Zoom Icon Overlay - Shows on hover on desktop, always subtly visible on mobile */}
+          <div className="absolute top-3 right-3 z-20 bg-black/30 backdrop-blur-md p-2.5 sm:p-2 rounded-full sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            <ZoomIn className="w-5 h-5 sm:w-4 sm:h-4 text-white" />
+          </div>
+
+          <div 
+            className="absolute inset-0 bg-cover bg-center opacity-40 dark:opacity-30 blur-2xl scale-110 saturate-150" 
+            style={{ backgroundImage: `url(${product.imageUrl})` }}
+          />
+          <img 
+            src={product.imageUrl} 
+            alt={product.name} 
+            className="relative z-10 max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] object-contain rounded-2xl group-hover:scale-105 transition-transform duration-700 ease-out shadow-2xl"
+            loading="lazy"
+          />
+        </div>
+        
+        <div className="p-5 sm:p-6 flex flex-col flex-grow">
+          <div className="flex justify-between items-start gap-3 sm:gap-4 mb-3">
+            <h3 className="text-lg sm:text-xl font-bold text-stone-800 dark:text-stone-100 tracking-tight leading-tight">{product.name}</h3>
+            
+            <span className="text-lg sm:text-xl font-extrabold text-orange-400 shrink-0 mt-0.5">
+              {product.hidePrice ? (
+                <span className="text-[10px] sm:text-[11px] px-2.5 py-1.5 font-bold tracking-wider bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-lg">{t.dmPrice}</span>
+              ) : (
+                `$${product.price.toFixed(2)}`
+              )}
+            </span>
+          </div>
           
-          <span className="text-xl font-extrabold text-orange-400 shrink-0 mt-0.5">
-            {product.hidePrice ? (
-              <span className="text-sm px-3 py-1 bg-orange-50 dark:bg-orange-500/10 rounded-lg">{t.dmPrice}</span>
-            ) : (
-              `$${product.price.toFixed(2)}`
-            )}
-          </span>
+          <div className="mb-4">
+            {getStatusBadge()}
+          </div>
+          
+          <p className="text-sm sm:text-base text-stone-500 dark:text-stone-400 flex-grow mb-6 leading-relaxed whitespace-pre-wrap">
+            {displayDescription}
+          </p>
+          
+          {isOutOfStock ? (
+            <button disabled className={`${buttonClasses} bg-stone-50 text-stone-400 dark:bg-stone-800/50 dark:text-stone-500 cursor-not-allowed`}>
+              <Send className="w-5 h-5 sm:w-4 sm:h-4" />
+              {t.unavailable}
+            </button>
+          ) : (
+            <a 
+              href={telegramUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className={`${buttonClasses} bg-[#2AABEE] text-white hover:bg-[#229ED9] shadow-lg shadow-[#2AABEE]/20 hover:shadow-[#2AABEE]/40`}
+            >
+              <Send className="w-5 h-5 sm:w-4 sm:h-4" />
+              {t.inquire}
+            </a>
+          )}
         </div>
-        
-        <div className="mb-4">
-          {getStatusBadge()}
-        </div>
-        
-        <p className="text-sm text-stone-500 dark:text-stone-400 flex-grow mb-6 leading-relaxed whitespace-pre-wrap">
-          {product.description}
-        </p>
-        
-        {isOutOfStock ? (
-          <button disabled className={`${buttonClasses} bg-stone-50 text-stone-400 dark:bg-stone-800/50 dark:text-stone-500 cursor-not-allowed`}>
-            <Send className="w-4 h-4" />
-            {t.unavailable}
-          </button>
-        ) : (
-          <a 
-            href={telegramUrl} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className={`${buttonClasses} bg-[#2AABEE] text-white hover:bg-[#229ED9] shadow-lg shadow-[#2AABEE]/20 hover:shadow-[#2AABEE]/40`}
-          >
-            <Send className="w-4 h-4" />
-            {t.inquire}
-          </a>
-        )}
       </div>
-    </div>
+
+      {/* Smooth Animated Lightbox Modal */}
+      {isLightboxOpen && (
+        <div 
+          className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-lg p-4 sm:p-8 transition-opacity duration-300 ease-out ${isMounted && !isClosing ? 'opacity-100' : 'opacity-0'}`} 
+          onClick={closeLightbox}
+        >
+          {/* Close Button */}
+          <button 
+            className={`absolute top-4 sm:top-6 right-4 sm:right-6 p-3 sm:p-4 bg-white/10 hover:bg-white/20 rounded-full transition-all duration-300 z-[101] ${isMounted && !isClosing ? 'scale-100 opacity-100' : 'scale-50 opacity-0'}`}
+            onClick={(e) => { e.stopPropagation(); closeLightbox(); }}
+            aria-label="Close"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+          
+          {/* Expanded Image */}
+          <img 
+            src={product.imageUrl} 
+            className={`max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl transition-all duration-300 cubic-bezier(0.16, 1, 0.3, 1) ${isMounted && !isClosing ? 'scale-100 translate-y-0 blur-none opacity-100' : 'scale-90 translate-y-8 blur-sm opacity-0'}`} 
+            alt={product.name} 
+            onClick={(e) => e.stopPropagation()} 
+          />
+        </div>
+      )}
+    </>
   );
 }

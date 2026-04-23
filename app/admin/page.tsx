@@ -11,7 +11,7 @@ export default function AdminDashboard() {
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [lang, setLang] = useState('en'); // Translation state
+  const [lang, setLang] = useState('en'); 
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,8 +19,9 @@ export default function AdminDashboard() {
   // Store Settings State
   const [storeName, setStoreName] = useState('');
   const [tagline, setTagline] = useState('');
+  const [taglineKh, setTaglineKh] = useState(''); // NEW: Khmer Tagline
   const [telegramHandle, setTelegramHandle] = useState('');
-  const [defaultLang, setDefaultLang] = useState('en'); // NEW: Admin Default Setting
+  const [defaultLang, setDefaultLang] = useState('en'); 
   
   const [logoUrl, setLogoUrl] = useState('');
   const [logoSize, setLogoSize] = useState(48);
@@ -35,6 +36,7 @@ export default function AdminDashboard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [productName, setProductName] = useState('');
   const [description, setDescription] = useState('');
+  const [descriptionKh, setDescriptionKh] = useState('');
   const [price, setPrice] = useState('');
   const [hidePrice, setHidePrice] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
@@ -71,6 +73,7 @@ export default function AdminDashboard() {
         const data = doc.data();
         setStoreName(data.storeName || '');
         setTagline(data.tagline || '');
+        setTaglineKh(data.taglineKh || ''); // NEW
         setTelegramHandle(data.telegramHandle || '');
         setDefaultLang(data.defaultLang || 'en');
         setLogoUrl(data.logoUrl || '');
@@ -100,7 +103,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     try {
       await setDoc(doc(db, 'settings', 'global'), { 
-        storeName, tagline, telegramHandle, defaultLang,
+        storeName, tagline, taglineKh, telegramHandle, defaultLang, // Added taglineKh
         logoUrl, logoSize, logoOffsetY, 
         heroImageUrl, heroImageSize 
       });
@@ -159,7 +162,16 @@ export default function AdminDashboard() {
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const productData = { name: productName, description, price: hidePrice ? 0 : parseFloat(price), hidePrice, imageUrl, status };
+      const productData = { 
+        name: productName, 
+        description, 
+        descriptionKh, 
+        price: hidePrice ? 0 : parseFloat(price), 
+        hidePrice, 
+        imageUrl, 
+        status 
+      };
+      
       if (editingId) {
         await updateDoc(doc(db, 'products', editingId), productData);
         alert(t('Product Updated!', 'បានធ្វើបច្ចុប្បន្នភាពផលិតផល!'));
@@ -176,9 +188,14 @@ export default function AdminDashboard() {
   };
 
   const handleEditClick = (product: any) => {
-    setEditingId(product.id); setProductName(product.name); setDescription(product.description);
-    setPrice(product.price ? product.price.toString() : ''); setHidePrice(product.hidePrice || false);
-    setImageUrl(product.imageUrl); setStatus(product.status);
+    setEditingId(product.id); 
+    setProductName(product.name); 
+    setDescription(product.description);
+    setDescriptionKh(product.descriptionKh || '');
+    setPrice(product.price ? product.price.toString() : ''); 
+    setHidePrice(product.hidePrice || false);
+    setImageUrl(product.imageUrl); 
+    setStatus(product.status);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -190,7 +207,14 @@ export default function AdminDashboard() {
   };
 
   const resetForm = () => {
-    setEditingId(null); setProductName(''); setDescription(''); setPrice(''); setHidePrice(false); setImageUrl(''); setStatus('in_stock');
+    setEditingId(null); 
+    setProductName(''); 
+    setDescription(''); 
+    setDescriptionKh(''); 
+    setPrice(''); 
+    setHidePrice(false); 
+    setImageUrl(''); 
+    setStatus('in_stock');
   };
 
   const inputClasses = "w-full p-3.5 rounded-xl bg-stone-50 border border-orange-100/50 focus:border-orange-400 focus:ring-4 focus:ring-orange-400/10 outline-none dark:bg-stone-950 dark:border-stone-800 dark:text-white dark:focus:border-orange-400 transition-all text-sm";
@@ -318,10 +342,19 @@ export default function AdminDashboard() {
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Store Name', 'ឈ្មោះហាង')}</label>
                 <input value={storeName} onChange={(e)=>setStoreName(e.target.value)} className={inputClasses} required />
               </div>
-              <div>
-                <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Tagline', 'ពាក្យស្លោក')}</label>
-                <input value={tagline} onChange={(e)=>setTagline(e.target.value)} className={inputClasses} required />
+
+              {/* SPLIT TAGLINE INPUTS */}
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Tagline (English)', 'ពាក្យស្លោក (អង់គ្លេស)')}</label>
+                  <input value={tagline} onChange={(e)=>setTagline(e.target.value)} className={inputClasses} required />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Tagline (Khmer)', 'ពាក្យស្លោក (ខ្មែរ)')}</label>
+                  <input value={taglineKh} onChange={(e)=>setTaglineKh(e.target.value)} className={inputClasses} placeholder={t("Optional", "ជម្រើស")} />
+                </div>
               </div>
+
               <div>
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Telegram Handle', 'ឈ្មោះ Telegram')}</label>
                 <input value={telegramHandle} onChange={(e)=>setTelegramHandle(e.target.value)} placeholder="username" className={inputClasses} required />
@@ -384,10 +417,17 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              <div className="md:col-span-2">
-                <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Description', 'ការពិពណ៌នា')}</label>
-                <textarea value={description} rows={3} onChange={(e)=>setDescription(e.target.value)} className={`${inputClasses} resize-none`} required />
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Description (English)', 'ការពិពណ៌នា (អង់គ្លេស)')}</label>
+                  <textarea value={description} rows={3} onChange={(e)=>setDescription(e.target.value)} className={`${inputClasses} resize-none`} required />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Description (Khmer)', 'ការពិពណ៌នា (ខ្មែរ)')}</label>
+                  <textarea value={descriptionKh} rows={3} onChange={(e)=>setDescriptionKh(e.target.value)} className={`${inputClasses} resize-none`} placeholder={t("Optional", "ជម្រើស")} />
+                </div>
               </div>
+              
               <div className="md:col-span-2 flex flex-col md:flex-row gap-5 items-end">
                 <div className="w-full md:w-1/2">
                   <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">{t('Stock Status', 'ស្ថានភាពស្តុក')}</label>
