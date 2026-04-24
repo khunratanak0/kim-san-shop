@@ -185,7 +185,7 @@ export default function Storefront() {
             {settings.storeName}
           </h1>
 
-          <p className="text-base sm:text-lg text-stone-500 dark:text-stone-400 leading-relaxed">
+          <p className="text-base sm:text-lg text-stone-700 dark:text-stone-300 font-medium leading-relaxed">
             {lang === 'kh' && settings.taglineKh ? settings.taglineKh : settings.tagline}
           </p>
         </div>

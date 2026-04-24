@@ -204,7 +204,7 @@ export default function ProductCard({
 
           <div className="mb-4">{getStatusBadge()}</div>
 
-          <p className="text-sm sm:text-base text-stone-500 dark:text-stone-400 flex-grow mb-5 leading-relaxed whitespace-pre-wrap">
+          <p className="text-sm sm:text-base text-stone-700 dark:text-stone-300 font-medium flex-grow mb-5 leading-relaxed whitespace-pre-wrap">
             {displayDescription}
           </p>
 
