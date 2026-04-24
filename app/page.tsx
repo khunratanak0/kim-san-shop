@@ -185,7 +185,7 @@ export default function Storefront() {
             {settings.storeName}
           </h1>
 
-          <p className="text-base sm:text-lg text-stone-700 dark:text-stone-300 font-medium leading-relaxed">
+          <p className="text-base sm:text-lg text-stone-800 dark:text-stone-200 font-semibold leading-relaxed">
             {lang === 'kh' && settings.taglineKh ? settings.taglineKh : settings.tagline}
           </p>
         </div>
@@ -256,7 +256,7 @@ export default function Storefront() {
             <p className="text-lg font-bold text-stone-800 dark:text-white mb-2">
               {t('Your catalog is empty.', 'កាតាឡុករបស់អ្នកទទេរ។')}
             </p>
-            <p className="text-sm">
+            <p className="text-sm text-stone-800 dark:text-stone-200 font-semibold">
               {t(
                 'Log into the admin portal to add your first product.',
                 'ចូលទៅកាន់វិបផតថលអ្នកគ្រប់គ្រងដើម្បីបន្ថែមផលិតផលដំបូងរបស់អ្នក។'
@@ -271,7 +271,7 @@ export default function Storefront() {
             <p className="text-lg font-bold text-stone-800 dark:text-white mb-2">
               {t('No products found.', 'រកមិនឃើញផលិតផលទេ។')}
             </p>
-            <p className="text-stone-500 text-sm mb-6">
+            <p className="text-stone-800 dark:text-stone-200 font-semibold text-sm mb-6">
               {t("We couldn't find anything matching", "យើងរកមិនឃើញអ្វីដែលត្រូវគ្នាទេ")} "{searchQuery}".
             </p>
             <button
