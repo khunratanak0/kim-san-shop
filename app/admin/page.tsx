@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { CldUploadWidget } from 'next-cloudinary';
@@ -44,12 +44,125 @@ import {
 
 const DEFAULT_CATEGORY = '';
 
+// Extracted ProductRow Component wrapper with React.memo
+const ProductRow = React.memo(function ProductRow({
+  product,
+  index,
+  totalCount,
+  isSelected,
+  onToggle,
+  onEdit,
+  onDelete,
+  onBump,
+  onMoveStep,
+  onDragStart,
+  onDrop,
+  lang,
+}: {
+  product: any;
+  index: number;
+  totalCount: number;
+  isSelected: boolean;
+  onToggle: (id: string) => void;
+  onEdit: (p: any) => void;
+  onDelete: (id: string) => void;
+  onBump: (id: string) => void;
+  onMoveStep: (index: number, dir: 'up' | 'down') => void;
+  onDragStart: (e: React.DragEvent<any>, id: string) => void;
+  onDrop: (e: React.DragEvent<any>, id: string) => void;
+  lang: string;
+}) {
+  const t = (en: string, kh: string) => lang === 'kh' ? kh : en;
+  const DEFAULT_CATEGORY = '';
+
+  return (
+    <tr
+      draggable
+      onDragStart={(e) => onDragStart(e, product.id)}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => onDrop(e, product.id)}
+      className={`hover:bg-orange-50/30 dark:hover:bg-stone-800/30 transition-colors group ${isSelected ? 'bg-orange-50/20 dark:bg-orange-500/5' : ''}`}
+    >
+      <td className="px-6 py-5 text-center">
+        <input type="checkbox" checked={isSelected} onChange={() => onToggle(product.id)} className="w-4 h-4 accent-orange-500" />
+      </td>
+      <td className="px-2 py-5">
+        <div className="inline-flex items-center gap-1.5 text-stone-400 font-medium">
+          <GripVertical className="w-4 h-4 cursor-grab" />
+          <div className="flex flex-col">
+            <button onClick={() => onMoveStep(index, 'up')} disabled={index === 0} className="hover:text-stone-800 disabled:opacity-30 p-1"><ArrowUp className="w-3 h-3" /></button>
+            <button onClick={() => onMoveStep(index, 'down')} disabled={index === totalCount - 1} className="hover:text-stone-800 disabled:opacity-30 p-1"><ArrowDown className="w-3 h-3" /></button>
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-5">
+        <div className="flex items-center gap-4">
+          <img src={product.imageUrl} alt={product.name} className="w-14 h-14 object-cover rounded-2xl border border-stone-100 dark:border-stone-700 bg-white" loading="lazy" />
+          <div>
+            <div className="font-bold text-stone-800 dark:text-white mb-1">{product.name}</div>
+            <div className="text-xs text-stone-400 max-w-[250px] truncate">{product.description}</div>
+          </div>
+        </div>
+      </td>
+      <td className="px-6 py-5">
+        <span className="bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300 px-2.5 py-1 rounded-md text-xs font-bold">
+          {product.category || DEFAULT_CATEGORY}
+        </span>
+      </td>
+      <td className="px-6 py-5">
+        {product.hidePrice ? (
+          <span className="text-stone-400 text-sm font-bold bg-stone-100 dark:bg-stone-800 px-2 py-1 rounded-md">{t('Hidden', 'លាក់')}</span>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {product.variants?.length > 0 ? product.variants.map((v: any, i: number) => (
+              <span key={i} className="text-[10px] font-bold bg-orange-50 text-orange-600 dark:bg-stone-800 dark:text-orange-400 px-2 py-1 rounded-lg">
+                {v.name}: ${parseFloat(v.price).toFixed(2)}
+              </span>
+            )) : (
+              <span className="font-extrabold text-stone-800 dark:text-white">${parseFloat(product.price).toFixed(2)}</span>
+            )}
+          </div>
+        )}
+      </td>
+      <td className="px-6 py-5">
+        <span className={`text-xs px-3 py-1.5 rounded-full font-bold inline-block ${
+          product.status === 'in_stock' ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+          : product.status === 'out_of_stock' ? 'bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400'
+          : 'bg-orange-50 text-orange-500 dark:bg-orange-500/10 dark:text-orange-400'
+        }`}>
+          {product.status === 'in_stock' ? t('In Stock', 'មានក្នុងស្តុក')
+            : product.status === 'out_of_stock' ? t('Out of Stock', 'អស់ពីស្តុក')
+            : t('Ask Seller', 'សួរអ្នកលក់')}
+        </span>
+      </td>
+      <td className="px-6 py-5 text-right">
+        <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+          <button onClick={() => onBump(product.id)} className="p-2.5 text-blue-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-stone-800 rounded-xl transition-colors text-xs font-bold" title={t('Move to Top', 'រុញទៅលើគេ')}>
+            {t('Top', 'លើគេ')}
+          </button>
+          <button onClick={() => onEdit(product)} className="p-2.5 text-stone-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-stone-800 rounded-xl transition-colors" title={t('Edit', 'កែសម្រួល')}>
+            <Edit className="w-4 h-4" />
+          </button>
+          <button onClick={() => onDelete(product.id)} className="p-2.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors" title={t('Delete', 'លុប')}>
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+});
+
 export default function AdminDashboard() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [lang, setLang] = useState('en');
+  const [lang, setLang] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('siteLang') || 'en';
+    }
+    return 'en';
+  });
   const [showSettings, setShowSettings] = useState(false);
 
   const [email, setEmail] = useState('');
@@ -58,7 +171,7 @@ export default function AdminDashboard() {
   const [storeName, setStoreName] = useState('');
   const [tagline, setTagline] = useState('');
   const [taglineKh, setTaglineKh] = useState('');
-  const [telegramHandle, setTelegramHandle] = useState('');
+  const[telegramHandle, setTelegramHandle] = useState('');
   const [defaultLang, setDefaultLang] = useState('en');
 
   const [logoUrl, setLogoUrl] = useState('');
@@ -66,32 +179,32 @@ export default function AdminDashboard() {
   const [logoOffsetY, setLogoOffsetY] = useState(0);
   const [isProcessingLogo, setIsProcessingLogo] = useState(false);
 
-  const [heroImageUrl, setHeroImageUrl] = useState('');
+  const[heroImageUrl, setHeroImageUrl] = useState('');
   const [heroImageSize, setHeroImageSize] = useState(128);
   const [isProcessingHeroImage, setIsProcessingHeroImage] = useState(false);
 
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [productName, setProductName] = useState('');
+  const[editingId, setEditingId] = useState<string | null>(null);
+  const[productName, setProductName] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORY);
-  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const[isCustomCategory, setIsCustomCategory] = useState(false);
   const [description, setDescription] = useState('');
   const [descriptionKh, setDescriptionKh] = useState('');
   const [variants, setVariants] = useState<{ name: string; price: string }[]>([
     { name: 'Standard', price: '' },
   ]);
   const [hidePrice, setHidePrice] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
+  const[imageUrl, setImageUrl] = useState('');
   const [status, setStatus] = useState('in_stock');
   const [isProcessingImage, setIsProcessingImage] = useState(false);
-  const [isUploadingCsv, setIsUploadingCsv] = useState(false);
+  const[isUploadingCsv, setIsUploadingCsv] = useState(false);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   const [products, setProducts] = useState<any[]>([]);
-  const [globalCategories, setGlobalCategories] = useState<string[]>([]);
+  const[globalCategories, setGlobalCategories] = useState<string[]>([]);
   
   // New State for Bulk Actions & Filters
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
-  const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  const[adminSearchQuery, setAdminSearchQuery] = useState('');
   const [adminCategoryFilter, setAdminCategoryFilter] = useState('all');
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
 
@@ -128,7 +241,7 @@ export default function AdminDashboard() {
         setLogoOffsetY(data.logoOffsetY || 0);
         setHeroImageUrl(data.heroImageUrl || '');
         setHeroImageSize(data.heroImageSize || 128);
-        setGlobalCategories(data.categories || []);
+        setGlobalCategories(data.categories ||[]);
       }
     });
 
@@ -142,12 +255,10 @@ export default function AdminDashboard() {
     }));
 
     setProducts(sortProducts(productsData));
-  }, []);
+  },[]);
 
   useEffect(() => {
     setMounted(true);
-    const storedLang = localStorage.getItem('siteLang');
-    if (storedLang) setLang(storedLang);
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -171,7 +282,7 @@ export default function AdminDashboard() {
       unsubscribe();
       window.removeEventListener('pageshow', onPageShow);
     };
-  }, [fetchData]);
+  },[fetchData]);
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set([
@@ -355,7 +466,7 @@ export default function AdminDashboard() {
   const addVariant = () => setVariants([...variants, { name: '', price: '' }]);
 
   const updateVariant = (index: number, field: 'name' | 'price', value: string) => {
-    const next = [...variants];
+    const next =[...variants];
     next[index][field] = value;
     setVariants(next);
   };
@@ -377,7 +488,7 @@ export default function AdminDashboard() {
         const text = event.target?.result as string;
 
         const parseRow = (rowStr: string) => {
-          const result: string[] = [];
+          const result: string[] =[];
           let current = '';
           let inQuotes = false;
 
@@ -410,7 +521,7 @@ export default function AdminDashboard() {
           return;
         }
 
-        const uploadPromises = [];
+        const uploadPromises =[];
 
         for (let i = 1; i < lines.length; i++) {
           const row = parseRow(lines[i]);
@@ -457,7 +568,7 @@ export default function AdminDashboard() {
         await fetchData();
       } catch (error) {
         console.error('CSV Import Error:', error);
-        alert(t('Failed to parse CSV. Ensure it is formatted correctly.', 'បរាជ័យក្នុងការអាន CSV។ សូមប្រាកដវាមានទម្រង់ត្រឹមត្រូវ។'));
+        alert(t('Failed to parse CSV. Ensure it is formatted correctly.', 'បរាជ័យក្នុងការអាន CSV។ សូមប្រាកដថាមានទម្រង់ត្រឹមត្រូវ។'));
       } finally {
         setIsUploadingCsv(false);
         e.target.value = '';
@@ -519,7 +630,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleEditClick = (product: any) => {
+  const handleEditClick = useCallback((product: any) => {
     setEditingId(product.id);
     setProductName(product.name);
 
@@ -541,25 +652,25 @@ export default function AdminDashboard() {
     setStatus(product.status || 'in_stock');
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  }, [uniqueCategories]);
 
-  const handleDeleteProduct = async (id: string) => {
+  const handleDeleteProduct = useCallback(async (id: string) => {
     if (window.confirm(t('Are you sure you want to delete this product?', 'តើអ្នកប្រាកដជាចង់លុបផលិតផលនេះទេ?'))) {
       await deleteDoc(doc(db, 'products', id));
       await fetchData();
       setSelectedProductIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     }
-  };
+  }, [t, fetchData]);
 
   // Bulk Actions
-  const toggleSelection = (id: string) => {
+  const toggleSelection = useCallback((id: string) => {
     setSelectedProductIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
+  },[]);
 
   const handleSelectAll = () => {
     if (selectedProductIds.size === filteredAdminProducts.length) {
@@ -642,7 +753,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleBumpToTop = async (id: string) => {
+  const handleBumpToTop = useCallback(async (id: string) => {
     const current = [...products];
     const index = current.findIndex((p) => p.id === id);
     if (index === -1) return;
@@ -651,10 +762,9 @@ export default function AdminDashboard() {
     current.unshift(item);
 
     await persistManualOrder(current);
-  };
+  }, [products]);
 
-  const handleMoveStep = async (index: number, direction: 'up' | 'down') => {
-    // We only allow move steps if not filtered, because moving filtered items breaks manual ordering logic.
+  const handleMoveStep = useCallback(async (index: number, direction: 'up' | 'down') => {
     if (adminSearchQuery || adminCategoryFilter !== 'all') {
       alert("Clear filters to manually reorder products.");
       return;
@@ -669,17 +779,17 @@ export default function AdminDashboard() {
 
     setProducts(next);
     await persistManualOrder(next);
-  };
+  },[products, adminSearchQuery, adminCategoryFilter]);
 
-  const handleDragStart = (
+  const handleDragStart = useCallback((
     e: React.DragEvent<HTMLDivElement | HTMLTableRowElement>,
     draggedId: string
   ) => {
     e.dataTransfer.setData('text/plain', draggedId);
     e.dataTransfer.effectAllowed = 'move';
-  };
+  },[]);
 
-  const handleDropReorder = async (
+  const handleDropReorder = useCallback(async (
     e: React.DragEvent<HTMLDivElement | HTMLTableRowElement>,
     targetId: string
   ) => {
@@ -702,7 +812,7 @@ export default function AdminDashboard() {
 
     setProducts(next);
     await persistManualOrder(next);
-  };
+  },[products, adminSearchQuery, adminCategoryFilter]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -1171,7 +1281,7 @@ export default function AdminDashboard() {
                       <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-orange-100 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-sm shrink-0">
                         <img src={imageUrl} alt="Preview" className="object-cover w-full h-full" loading="lazy" />
                       </div>
-                      <p className="text-xs text-stone-500 font-medium">{t('Image ready.', 'រូបភាពត្រៀមរួចរាល់។')}</p>
+                      <p className="text-xs text-stone-500 font-medium">{t('Image ready.', 'រូបភាពត្រៀមរៀបរាល់។')}</p>
                     </div>
                     <button type="button" onClick={() => setImageUrl('')} className="p-2 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold">
                       <X className="w-4 h-4" /> <span className="hidden sm:inline">{t('Remove', 'លុប')}</span>
@@ -1258,17 +1368,17 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Floating Action Bar for Bulk Selection */}
+          {/* Sticky Action Bar at Top for Bulk Selection - NOW ACCESSIBLE */}
           {selectedProductIds.size > 0 && (
-            <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-8 z-50 bg-stone-900/95 backdrop-blur border border-stone-700 text-white rounded-2xl p-4 shadow-2xl flex flex-wrap gap-4 items-center justify-between animate-fade-up max-w-[800px] md:min-w-[500px]">
+            <div className="sticky top-0 left-0 right-0 z-45 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-2xl m-4 p-4 shadow-2xl flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6 animate-slide-in-up border border-orange-400">
               <div className="flex items-center gap-3">
-                <CheckSquare className="w-5 h-5 text-orange-400" />
-                <span className="font-bold text-sm">{selectedProductIds.size} Selected</span>
+                <CheckSquare className="w-5 h-5 text-white flex-shrink-0" />
+                <span className="font-bold text-sm">{selectedProductIds.size} {t('Selected', 'បានជ្រើសរើស')}</span>
               </div>
               
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
                 <select 
-                  className="bg-stone-800 border border-stone-700 text-white text-xs px-3 py-2 rounded-lg font-bold outline-none flex-1 sm:flex-none"
+                  className="bg-white/20 border border-white/30 text-white text-xs px-3 py-2 rounded-lg font-bold outline-none flex-1 sm:flex-none backdrop-blur hover:bg-white/30 transition-colors"
                   onChange={(e) => {
                     handleBulkCategoryChange(e.target.value);
                     e.target.value = "";
@@ -1276,12 +1386,12 @@ export default function AdminDashboard() {
                   disabled={isProcessingBulk}
                   defaultValue=""
                 >
-                  <option value="" disabled>Set Category...</option>
-                  {uniqueCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  <option value="" disabled className="text-stone-900 bg-white">{t('Set Category...', 'កំណត់ប្រភេទ...')}</option>
+                  {uniqueCategories.map(cat => <option key={cat} value={cat} className="text-stone-900 bg-white">{cat}</option>)}
                 </select>
                 
                 <select 
-                  className="bg-stone-800 border border-stone-700 text-white text-xs px-3 py-2 rounded-lg font-bold outline-none flex-1 sm:flex-none"
+                  className="bg-white/20 border border-white/30 text-white text-xs px-3 py-2 rounded-lg font-bold outline-none flex-1 sm:flex-none backdrop-blur hover:bg-white/30 transition-colors"
                   onChange={(e) => {
                     handleBulkStatusChange(e.target.value);
                     e.target.value = "";
@@ -1289,16 +1399,16 @@ export default function AdminDashboard() {
                   disabled={isProcessingBulk}
                   defaultValue=""
                 >
-                  <option value="" disabled>Set Status...</option>
-                  <option value="in_stock">In Stock</option>
-                  <option value="out_of_stock">Out of Stock</option>
-                  <option value="check_seller">Ask Seller</option>
+                  <option value="" disabled className="text-stone-900 bg-white">{t('Set Status...', 'កំណត់ស្ថានភាព...')}</option>
+                  <option value="in_stock" className="text-stone-900 bg-white">{t('In Stock', 'មានក្នុងស្តុក')}</option>
+                  <option value="out_of_stock" className="text-stone-900 bg-white">{t('Out of Stock', 'អស់ពីស្តុក')}</option>
+                  <option value="check_seller" className="text-stone-900 bg-white">{t('Ask Seller', 'សួរអ្នកលក់')}</option>
                 </select>
 
                 <button 
                   onClick={handleBulkDelete} 
                   disabled={isProcessingBulk}
-                  className="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white p-2 rounded-lg transition-colors shrink-0"
+                  className="bg-red-400/30 text-white hover:bg-red-400 hover:text-white p-2 rounded-lg transition-colors shrink-0 border border-white/30 hover:border-white/50"
                   title="Bulk Delete"
                 >
                   {isProcessingBulk ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
@@ -1416,119 +1526,21 @@ export default function AdminDashboard() {
                   </tr>
                 ) : (
                   filteredAdminProducts.map((product, index) => (
-                    <tr
+                    <ProductRow
                       key={product.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, product.id)}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => handleDropReorder(e, product.id)}
-                      className={`hover:bg-orange-50/30 dark:hover:bg-stone-800/30 transition-colors group ${selectedProductIds.has(product.id) ? 'bg-orange-50/20 dark:bg-orange-500/5' : ''}`}
-                    >
-                      <td className="px-6 py-5 text-center">
-                        <input type="checkbox" checked={selectedProductIds.has(product.id)} onChange={() => toggleSelection(product.id)} className="w-4 h-4 accent-orange-500" />
-                      </td>
-                      <td className="px-2 py-5">
-                        <div className="inline-flex items-center gap-1.5 text-stone-400 font-medium">
-                          <GripVertical className="w-4 h-4 cursor-grab" />
-                          <div className="flex flex-col">
-                            <button onClick={() => handleMoveStep(index, 'up')} disabled={index === 0} className="hover:text-stone-800 disabled:opacity-30 p-1"><ArrowUp className="w-3 h-3" /></button>
-                            <button onClick={() => handleMoveStep(index, 'down')} disabled={index === products.length - 1} className="hover:text-stone-800 disabled:opacity-30 p-1"><ArrowDown className="w-3 h-3" /></button>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-5">
-                        <div className="flex items-center gap-4">
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="w-14 h-14 object-cover rounded-2xl border border-stone-100 dark:border-stone-700 bg-white"
-                            loading="lazy"
-                          />
-                          <div>
-                            <div className="font-bold text-stone-800 dark:text-white mb-1">{product.name}</div>
-                            <div className="text-xs text-stone-400 max-w-[250px] truncate">{product.description}</div>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-5">
-                        <span className="bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300 px-2.5 py-1 rounded-md text-xs font-bold">
-                          {product.category || DEFAULT_CATEGORY}
-                        </span>
-                      </td>
-
-                      <td className="px-6 py-5">
-                        {product.hidePrice ? (
-                          <span className="text-stone-400 text-sm font-bold bg-stone-100 dark:bg-stone-800 px-2 py-1 rounded-md">
-                            {t('Hidden', 'លាក់')}
-                          </span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {product.variants && product.variants.length > 0 ? (
-                              product.variants.map((v: any, i: number) => (
-                                <span
-                                  key={i}
-                                  className="text-[10px] font-bold bg-orange-50 text-orange-600 dark:bg-stone-800 dark:text-orange-400 px-2 py-1 rounded-lg"
-                                >
-                                  {v.name}: ${parseFloat(v.price).toFixed(2)}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="font-extrabold text-stone-800 dark:text-white">
-                                ${parseFloat(product.price).toFixed(2)}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-5">
-                        <span
-                          className={`text-xs px-3 py-1.5 rounded-full font-bold inline-block ${
-                            product.status === 'in_stock'
-                              ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
-                              : product.status === 'out_of_stock'
-                              ? 'bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400'
-                              : 'bg-orange-50 text-orange-500 dark:bg-orange-500/10 dark:text-orange-400'
-                          }`}
-                        >
-                          {product.status === 'in_stock'
-                            ? t('In Stock', 'មានក្នុងស្តុក')
-                            : product.status === 'out_of_stock'
-                            ? t('Out of Stock', 'អស់ពីស្តុក')
-                            : t('Ask Seller', 'សួរអ្នកលក់')}
-                        </span>
-                      </td>
-
-                      <td className="px-6 py-5 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => handleBumpToTop(product.id)}
-                            className="p-2.5 text-blue-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-stone-800 rounded-xl transition-colors text-xs font-bold"
-                            title={t('Move to Top', 'រុញទៅលើគេ')}
-                          >
-                            {t('Top', 'លើគេ')}
-                          </button>
-
-                          <button
-                            onClick={() => handleEditClick(product)}
-                            className="p-2.5 text-stone-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-stone-800 rounded-xl transition-colors"
-                            title={t('Edit', 'កែសម្រួល')}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-
-                          <button
-                            onClick={() => handleDeleteProduct(product.id)}
-                            className="p-2.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
-                            title={t('Delete', 'លុប')}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                      product={product}
+                      index={index}
+                      totalCount={products.length}
+                      isSelected={selectedProductIds.has(product.id)}
+                      onToggle={toggleSelection}
+                      onEdit={handleEditClick}
+                      onDelete={handleDeleteProduct}
+                      onBump={handleBumpToTop}
+                      onMoveStep={handleMoveStep}
+                      onDragStart={handleDragStart}
+                      onDrop={handleDropReorder}
+                      lang={lang}
+                    />
                   ))
                 )}
               </tbody>

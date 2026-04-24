@@ -28,7 +28,12 @@ const SkeletonCard = () => (
 
 export default function Storefront() {
   const [products, setProducts] = useState<any[]>([]);
-  const [lang, setLang] = useState('en');
+  const [lang, setLang] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('siteLang') || 'en';
+    }
+    return 'en';
+  });
   const [settings, setSettings] = useState({
     storeName: 'KIM SAN SHOP CATALOG',
     tagline: 'Curated excellence. Discover our exclusive collection.',
@@ -43,12 +48,13 @@ export default function Storefront() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [stockFilter, setStockFilter] = useState('all');
+  const[stockFilter, setStockFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
   const [showSearchBar, setShowSearchBar] = useState(true);
-  const [compactSearchBar, setCompactSearchBar] = useState(false);
+  const[compactSearchBar, setCompactSearchBar] = useState(false);
   const [displayLimit, setDisplayLimit] = useState(PRODUCTS_PER_PAGE);
 
   const lastScrollY = useRef(0);
@@ -79,16 +85,19 @@ export default function Storefront() {
     });
   };
 
+  useEffect(() => {
+    setMounted(true);
+  },[]);
+
   const fetchStorefrontData = useCallback(async () => {
     try {
       const settingsDoc = await getDoc(doc(db, 'settings', 'global'));
       if (settingsDoc.exists()) {
         const data = settingsDoc.data() as any;
         setSettings((prev) => ({ ...prev, ...data }));
-
-        const storedLang = localStorage.getItem('siteLang');
-        if (storedLang) setLang(storedLang);
-        else if (data.defaultLang) setLang(data.defaultLang);
+        if (!localStorage.getItem('siteLang') && data.defaultLang) {
+          setLang(data.defaultLang);
+        }
       }
 
       const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
@@ -99,7 +108,7 @@ export default function Storefront() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  },[]);
 
   useEffect(() => {
     fetchStorefrontData();
@@ -108,7 +117,7 @@ export default function Storefront() {
   // Reset limit when filters change
   useEffect(() => {
     setDisplayLimit(PRODUCTS_PER_PAGE);
-  }, [searchQuery, categoryFilter, stockFilter]);
+  },[searchQuery, categoryFilter, stockFilter]);
 
   useEffect(() => {
     let ticking = false;
@@ -136,7 +145,7 @@ export default function Storefront() {
 
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  },[]);
 
   useEffect(() => {
     const handlePageShow = (event: Event) => {
@@ -150,7 +159,7 @@ export default function Storefront() {
     return () => {
       window.removeEventListener('pageshow', handlePageShow);
     };
-  }, [fetchStorefrontData]);
+  },[fetchStorefrontData]);
 
   const uniqueCategories = useMemo(() => {
     const cats = products
@@ -174,10 +183,40 @@ export default function Storefront() {
 
       return matchesSearch && matchesStock && matchesCategory;
     });
-  }, [products, searchQuery, stockFilter, categoryFilter]);
+  },[products, searchQuery, stockFilter, categoryFilter]);
 
   const displayedProducts = filteredProducts.slice(0, displayLimit);
   const hasMore = displayLimit < filteredProducts.length;
+
+  if (loading && mounted) {
+    const loadingText = lang === 'kh' ? 'កំពុងផ្ទុកហាងរបស់អ្នក...' : 'Loading your store...';
+    const loadingSubtext = lang === 'kh' ? 'សូមរង់ចាំខណៈពេលដែលយើងរៀបចំផលិតផលរបស់អ្នក' : 'Please wait while we prepare your products';
+
+    return (
+      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-300 flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center gap-8">
+          <div className="flex flex-col items-center">
+            <div className="relative w-24 h-24 mb-6">
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-orange-300 rounded-3xl opacity-20 animate-pulse"></div>
+              <div className="absolute inset-2 bg-gradient-to-r from-orange-400 to-orange-300 rounded-2xl opacity-10 animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-4xl font-extrabold text-orange-400 animate-pulse">✨</div>
+              </div>
+            </div>
+          </div>
+          <div className="text-center">
+            <h2 className="text-2xl font-extrabold text-stone-800 dark:text-white mb-2 tracking-tight">{loadingText}</h2>
+            <p className="text-stone-500 dark:text-stone-400 text-sm font-medium">{loadingSubtext}</p>
+          </div>
+          <div className="flex gap-2">
+            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-300 selection:bg-orange-200 selection:text-orange-900">
