@@ -209,7 +209,7 @@ export default function Storefront() {
                 <Search className="w-5 h-5 text-stone-400 absolute left-4 group-focus-within:text-orange-400 transition-colors" />
                 <input
                   type="text"
-                  placeholder={t('Search products...', 'Search products...')}
+                  placeholder={t('Search products...', 'ស្វែងរកផលិតផល...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 bg-stone-50/80 dark:bg-stone-950/70 border border-stone-200 dark:border-stone-800 rounded-xl md:rounded-2xl outline-none text-stone-800 dark:text-white placeholder-stone-400 text-sm font-medium focus:ring-4 focus:ring-orange-400/10 focus:border-orange-300 transition-all"
@@ -222,7 +222,7 @@ export default function Storefront() {
                   onChange={(e) => setCategoryFilter(e.target.value)}
                   className="min-w-[150px] px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl text-sm font-bold text-stone-600 dark:text-stone-300 outline-none focus:ring-2 focus:ring-orange-400/20 cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors"
                 >
-                  <option value="all">{t('All Categories', 'All Categories')}</option>
+                  <option value="all">{t('All Categories', 'ប្រភេទទាំងអស់')}</option>
                   {uniqueCategories.map((cat) => (
                     <option key={cat} value={cat}>
                       {cat}
@@ -235,10 +235,10 @@ export default function Storefront() {
                   onChange={(e) => setStockFilter(e.target.value)}
                   className="min-w-[140px] px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl text-sm font-bold text-stone-600 dark:text-stone-300 outline-none focus:ring-2 focus:ring-orange-400/20 cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors"
                 >
-                  <option value="all">{t('All Items', 'All Items')}</option>
-                  <option value="in_stock">{t('In Stock Only', 'In Stock Only')}</option>
-                  <option value="check_seller">{t('Ask Seller', 'Ask Seller')}</option>
-                  <option value="out_of_stock">{t('Out of Stock', 'Out of Stock')}</option>
+                  <option value="all">{t('All Items', 'ទំនិញទាំងអស់')}</option>
+                  <option value="in_stock">{t('In Stock Only', 'មានក្នុងស្តុកតែប៉ុណ្ណោះ')}</option>
+                  <option value="check_seller">{t('Ask Seller', 'សួរអ្នកលក់')}</option>
+                  <option value="out_of_stock">{t('Out of Stock', 'អស់ពីស្តុក')}</option>
                 </select>
               </div>
             </div>
@@ -254,12 +254,12 @@ export default function Storefront() {
         ) : products.length === 0 ? (
           <div className="text-center text-stone-500 py-20 bg-white dark:bg-stone-900 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
             <p className="text-lg font-bold text-stone-800 dark:text-white mb-2">
-              {t('Your catalog is empty.', 'Your catalog is empty.')}
+              {t('Your catalog is empty.', 'កាតាឡុករបស់អ្នកទទេរ។')}
             </p>
             <p className="text-sm">
               {t(
                 'Log into the admin portal to add your first product.',
-                'Log into the admin portal to add your first product.'
+                'ចូលទៅកាន់វិបផតថលអ្នកគ្រប់គ្រងដើម្បីបន្ថែមផលិតផលដំបូងរបស់អ្នក។'
               )}
             </p>
           </div>
@@ -269,11 +269,10 @@ export default function Storefront() {
               <FilterX className="w-8 h-8 text-stone-400" />
             </div>
             <p className="text-lg font-bold text-stone-800 dark:text-white mb-2">
-              {t('No products found.', 'No products found.')}
+              {t('No products found.', 'រកមិនឃើញផលិតផលទេ។')}
             </p>
             <p className="text-stone-500 text-sm mb-6">
-              {t("We couldn't find anything matching", "We couldn't find anything matching")} "
-              {searchQuery}".
+              {t("We couldn't find anything matching", "យើងរកមិនឃើញអ្វីដែលត្រូវគ្នាទេ")} "{searchQuery}".
             </p>
             <button
               onClick={() => {
@@ -283,7 +282,7 @@ export default function Storefront() {
               }}
               className="px-6 py-2.5 bg-orange-50 dark:bg-stone-800 text-orange-500 dark:text-orange-400 font-bold rounded-xl hover:bg-orange-100 dark:hover:bg-stone-700 transition-colors text-sm active:scale-95"
             >
-              {t('Clear Filters', 'Clear Filters')}
+              {t('Clear Filters', 'លុបការចម្រាញ់')}
             </button>
           </div>
         ) : (

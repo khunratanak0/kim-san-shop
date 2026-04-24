@@ -33,14 +33,14 @@ const dict = {
     msgPrice: 'Hi, I am interested in *{name}* priced at ${price}. Is it available?',
   },
   kh: {
-    dmPrice: 'DM FOR PRICE',
-    inStock: 'IN STOCK',
-    outOfStock: 'OUT OF STOCK',
-    askSeller: 'ASK SELLER',
-    unavailable: 'CURRENTLY UNAVAILABLE',
-    inquire: 'Inquire via Telegram',
-    msgHidden: 'Hi, I am interested in *{name}*. Can you provide the price and availability?',
-    msgPrice: 'Hi, I am interested in *{name}* priced at ${price}. Is it available?',
+    dmPrice: 'ឆាតសួរតម្លៃ',
+    inStock: 'មានក្នុងស្តុក',
+    outOfStock: 'អស់ពីស្តុក',
+    askSeller: 'សួរអ្នកលក់',
+    unavailable: 'បច្ចុប្បន្នមិនមានលក់ទេ',
+    inquire: 'សាកសួរតាម Telegram',
+    msgHidden: 'សួស្តី ខ្ញុំចាប់អារម្មណ៍លើ *{name}*។ តើមានអីវ៉ាន់ និងតម្លៃប៉ុន្មានដែរ?',
+    msgPrice: 'សួស្តី ខ្ញុំចាប់អារម្មណ៍លើ *{name}* តម្លៃ ${price}។ តើមានអីវ៉ាន់ទេ?',
   },
 };
 
