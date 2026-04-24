@@ -2,6 +2,7 @@
 
 import { Send, X, ZoomIn } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Variant {
   name: string;
@@ -118,7 +119,6 @@ export default function ProductCard({
     'w-full flex items-center justify-center gap-2 px-4 py-4 sm:py-3.5 rounded-2xl font-bold text-sm sm:text-base transition-all duration-300 active:scale-[0.98]';
 
   const openLightbox = () => {
-    // Prevent opening if there's no image
     if (!product.imageUrl) return;
     
     setIsLightboxOpen(true);
@@ -248,7 +248,7 @@ export default function ProductCard({
         </div>
       </div>
 
-      {isLightboxOpen && product.imageUrl && (
+      {isLightboxOpen && product.imageUrl && typeof document !== 'undefined' && createPortal(
         <div
           className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4 sm:p-8 transition-opacity duration-300 ease-out ${
             isMounted && !isClosing ? 'opacity-100' : 'opacity-0'
@@ -278,7 +278,8 @@ export default function ProductCard({
             alt={product.name}
             onClick={(e) => e.stopPropagation()}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

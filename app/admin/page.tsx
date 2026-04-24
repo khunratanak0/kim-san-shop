@@ -85,7 +85,7 @@ export default function AdminDashboard() {
   const toggleLang = () => {
     const newLang = lang === 'en' ? 'kh' : 'en';
     setLang(newLang);
-    localStorage.setItem('adminLang', newLang);
+    localStorage.setItem('siteLang', newLang);
   };
 
   const sortProducts = (items: any[]) => {
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setMounted(true);
-    const storedLang = localStorage.getItem('adminLang');
+    const storedLang = localStorage.getItem('siteLang');
     if (storedLang) setLang(storedLang);
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -171,7 +171,7 @@ export default function AdminDashboard() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch {
-      alert('Invalid credentials');
+      alert(t('Invalid credentials', 'ព័ត៌មានសម្ងាត់មិនត្រឹមត្រូវ'));
     }
   };
 
@@ -194,10 +194,10 @@ export default function AdminDashboard() {
         },
         { merge: true }
       );
-      alert(t('Settings Saved Successfully!', 'Settings Saved Successfully!'));
+      alert(t('Settings Saved Successfully!', 'រក្សាទុកការកំណត់ដោយជោគជ័យ!'));
     } catch (error) {
       console.error('Error saving settings', error);
-      alert(t('Error saving settings.', 'Error saving settings.'));
+      alert(t('Error saving settings.', 'មានកំហុសក្នុងការរក្សាទុកការកំណត់។'));
     }
   };
 
@@ -310,7 +310,7 @@ export default function AdminDashboard() {
         const varIdx = headers.findIndex((h) => h.includes('variant'));
 
         if (nameIdx === -1 || varIdx === -1) {
-          alert('CSV must contain "Name" and "Variants" columns.');
+          alert(t('CSV must contain "Name" and "Variants" columns.', 'CSV ត្រូវតែមានជួរឈរ "Name" និង "Variants"។'));
           setIsUploadingCsv(false);
           return;
         }
@@ -358,11 +358,11 @@ export default function AdminDashboard() {
         }
 
         await Promise.all(uploadPromises);
-        alert(`Successfully imported ${uploadPromises.length} products!`);
+        alert(lang === 'kh' ? `បាននាំចូលផលិតផល ${uploadPromises.length} ដោយជោគជ័យ!` : `Successfully imported ${uploadPromises.length} products!`);
         await fetchData();
       } catch (error) {
         console.error('CSV Import Error:', error);
-        alert('Failed to parse CSV. Ensure it is formatted correctly.');
+        alert(t('Failed to parse CSV. Ensure it is formatted correctly.', 'បរាជ័យក្នុងការអាន CSV។ សូមប្រាកដថាវាមានទម្រង់ត្រឹមត្រូវ។'));
       } finally {
         setIsUploadingCsv(false);
         e.target.value = '';
@@ -406,21 +406,21 @@ export default function AdminDashboard() {
 
       if (editingId) {
         await updateDoc(doc(db, 'products', editingId), productData);
-        alert(t('Product Updated!', 'Product Updated!'));
+        alert(t('Product Updated!', 'បានធ្វើបច្ចុប្បន្នភាពផលិតផល!'));
       } else {
         await addDoc(collection(db, 'products'), {
           ...productData,
           createdAt: Date.now(),
           manualOrder: products.length,
         });
-        alert(t('Product Added!', 'Product Added!'));
+        alert(t('Product Added!', 'បានបន្ថែមផលិតផល!'));
       }
 
       resetForm();
       await fetchData();
     } catch (error) {
       console.error('Error saving product', error);
-      alert(t('Error saving product.', 'Error saving product.'));
+      alert(t('Error saving product.', 'មានកំហុសក្នុងការរក្សាទុកផលិតផល។'));
     }
   };
 
@@ -449,7 +449,7 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteProduct = async (id: string) => {
-    if (window.confirm(t('Are you sure you want to delete this product?', 'Are you sure you want to delete this product?'))) {
+    if (window.confirm(t('Are you sure you want to delete this product?', 'តើអ្នកប្រាកដជាចង់លុបផលិតផលនេះទេ?'))) {
       await deleteDoc(doc(db, 'products', id));
       await fetchData();
     }
@@ -466,7 +466,7 @@ export default function AdminDashboard() {
       setProducts(items.map((item, index) => ({ ...item, manualOrder: index })));
     } catch (error) {
       console.error('Error saving manual order', error);
-      alert('Failed to save product order.');
+      alert(t('Failed to save product order.', 'បរាជ័យក្នុងការរក្សាទុកលំដាប់ផលិតផល។'));
       await fetchData();
     } finally {
       setIsSavingOrder(false);
@@ -543,7 +543,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950 text-orange-400">
-        {t('Loading...', 'Loading...')}
+        {t('Loading...', 'កំពុងផ្ទុក...')}
       </div>
     );
   }
@@ -579,19 +579,19 @@ export default function AdminDashboard() {
           </div>
 
           <h2 className="text-3xl font-extrabold mb-8 text-center text-stone-800 dark:text-white tracking-tight">
-            {t('Admin Portal', 'Admin Portal')}
+            {t('Admin Portal', 'វិបផតថលអ្នកគ្រប់គ្រង')}
           </h2>
 
           <div className="space-y-4 mb-8">
             <input
               type="email"
-              placeholder={t('Email address', 'Email address')}
+              placeholder={t('Email address', 'អាសយដ្ឋានអ៊ីមែល')}
               onChange={(e) => setEmail(e.target.value)}
               className={inputClasses}
             />
             <input
               type="password"
-              placeholder={t('Password', 'Password')}
+              placeholder={t('Password', 'ពាក្យសម្ងាត់')}
               onChange={(e) => setPassword(e.target.value)}
               className={inputClasses}
             />
@@ -601,7 +601,7 @@ export default function AdminDashboard() {
             type="submit"
             className="w-full bg-orange-400 text-white py-4 rounded-xl font-bold text-lg hover:bg-orange-500 shadow-lg shadow-orange-400/20 transition-all active:scale-[0.98]"
           >
-            {t('Log In', 'Log In')}
+            {t('Log In', 'ចូល')}
           </button>
         </form>
       </div>
@@ -615,10 +615,10 @@ export default function AdminDashboard() {
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="min-w-0">
               <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-stone-800 dark:text-white">
-                {t('Dashboard Overview', 'Dashboard Overview')}
+                {t('Dashboard Overview', 'ទិដ្ឋភាពទូទៅនៃផ្ទាំងគ្រប់គ្រង')}
               </h1>
               <p className="text-stone-500 dark:text-stone-400 mt-1">
-                {t('Manage your storefront settings and inventory.', 'Manage your storefront settings and inventory.')}
+                {t('Manage your storefront settings and inventory.', 'គ្រប់គ្រងការកំណត់ហាងនិងស្តុករបស់អ្នក។')}
               </p>
             </div>
 
@@ -628,7 +628,7 @@ export default function AdminDashboard() {
               >
                 {isUploadingCsv ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
                 <span className="whitespace-nowrap">
-                  {isUploadingCsv ? t('Importing...', 'Importing...') : t('Bulk Import CSV', 'Bulk Import CSV')}
+                  {isUploadingCsv ? t('Importing...', 'កំពុងនាំចូល...') : t('Bulk Import CSV', 'នាំចូល CSV')}
                 </span>
                 <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" disabled={isUploadingCsv} />
               </label>
@@ -652,13 +652,12 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              {/* Fixed wrapping for signout button to ensure it displays well on mobile */}
               <button
                 onClick={() => signOut(auth)}
                 className="flex items-center gap-2 px-4 sm:px-5 py-3 bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors w-full sm:flex-1 md:flex-none justify-center"
               >
                 <LogOut className="w-4 h-4" />
-                {t('Sign Out', 'Sign Out')}
+                {t('Sign Out', 'ចាកចេញ')}
               </button>
             </div>
           </div>
@@ -671,7 +670,7 @@ export default function AdminDashboard() {
                 <Settings className="w-5 h-5 text-orange-400" />
               </div>
               <h2 className="text-xl font-bold text-stone-800 dark:text-white">
-                {t('Store Settings', 'Store Settings')}
+                {t('Store Settings', 'ការកំណត់ហាង')}
               </h2>
             </div>
 
@@ -679,7 +678,7 @@ export default function AdminDashboard() {
               <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold text-stone-400 uppercase">
-                    {t('Header Logo', 'Header Logo')}
+                    {t('Header Logo', 'និមិត្តសញ្ញា')}
                   </label>
                   {logoUrl && (
                     <button
@@ -687,7 +686,7 @@ export default function AdminDashboard() {
                       onClick={() => setLogoUrl('')}
                       className="text-xs font-bold text-red-400 hover:text-red-500 flex items-center gap-1"
                     >
-                      <X className="w-3 h-3" /> {t('Remove', 'Remove')}
+                      <X className="w-3 h-3" /> {t('Remove', 'លុប')}
                     </button>
                   )}
                 </div>
@@ -705,7 +704,7 @@ export default function AdminDashboard() {
                     className={`cursor-pointer flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs transition-all duration-300 ${isProcessingLogo ? 'bg-orange-100 text-orange-400' : 'bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300'}`}
                   >
                     <UploadCloud className="w-4 h-4" />
-                    {isProcessingLogo ? t('Processing...', 'Processing...') : t('Upload Logo', 'Upload Logo')}
+                    {isProcessingLogo ? t('Processing...', 'កំពុងដំណើរការ...') : t('Upload Logo', 'បង្ហោះនិមិត្តសញ្ញា')}
                     <input
                       type="file"
                       accept="image/*"
@@ -723,7 +722,7 @@ export default function AdminDashboard() {
                   <div className="space-y-4">
                     <div>
                       <div className="flex justify-between text-xs font-bold text-stone-400 mb-2">
-                        <span>{t('Logo Size', 'Logo Size')}</span>
+                        <span>{t('Logo Size', 'ទំហំនិមិត្តសញ្ញា')}</span>
                         <span className="text-orange-400">{logoSize}px</span>
                       </div>
                       <input
@@ -737,7 +736,7 @@ export default function AdminDashboard() {
                     </div>
                     <div>
                       <div className="flex justify-between text-xs font-bold text-stone-400 mb-2">
-                        <span>{t('Vertical Align (Offset)', 'Vertical Align (Offset)')}</span>
+                        <span>{t('Vertical Align (Offset)', 'តម្រឹមបញ្ឈរ')}</span>
                         <span className="text-orange-400">{logoOffsetY}px</span>
                       </div>
                       <input
@@ -756,7 +755,7 @@ export default function AdminDashboard() {
               <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold text-stone-400 uppercase">
-                    {t('Hero Image (Above Title)', 'Hero Image (Above Title)')}
+                    {t('Hero Image (Above Title)', 'រូបភាពទាក់ទាញ (ខាងលើចំណងជើង)')}
                   </label>
                   {heroImageUrl && (
                     <button
@@ -764,7 +763,7 @@ export default function AdminDashboard() {
                       onClick={() => setHeroImageUrl('')}
                       className="text-xs font-bold text-red-400 hover:text-red-500 flex items-center gap-1"
                     >
-                      <X className="w-3 h-3" /> {t('Remove', 'Remove')}
+                      <X className="w-3 h-3" /> {t('Remove', 'លុប')}
                     </button>
                   )}
                 </div>
@@ -782,7 +781,7 @@ export default function AdminDashboard() {
                     className={`cursor-pointer flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs transition-all duration-300 ${isProcessingHeroImage ? 'bg-orange-100 text-orange-400' : 'bg-white dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300'}`}
                   >
                     <UploadCloud className="w-4 h-4" />
-                    {isProcessingHeroImage ? t('Processing...', 'Processing...') : t('Upload Hero Image', 'Upload Hero Image')}
+                    {isProcessingHeroImage ? t('Processing...', 'កំពុងដំណើរការ...') : t('Upload Hero Image', 'បង្ហោះរូបភាពទាក់ទាញ')}
                     <input
                       type="file"
                       accept="image/*"
@@ -799,7 +798,7 @@ export default function AdminDashboard() {
                 {heroImageUrl && (
                   <div>
                     <div className="flex justify-between text-xs font-bold text-stone-400 mb-2">
-                      <span>{t('Hero Display Size', 'Hero Display Size')}</span>
+                      <span>{t('Hero Display Size', 'ទំហំបង្ហាញរូបភាព')}</span>
                       <span className="text-orange-400">{heroImageSize}px</span>
                     </div>
                     <input
@@ -816,7 +815,7 @@ export default function AdminDashboard() {
 
               <div>
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">
-                  {t('Store Name', 'Store Name')}
+                  {t('Store Name', 'ឈ្មោះហាង')}
                 </label>
                 <input value={storeName} onChange={(e) => setStoreName(e.target.value)} className={inputClasses} required />
               </div>
@@ -824,32 +823,32 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">
-                    {t('Tagline (English)', 'Tagline (English)')}
+                    {t('Tagline (English)', 'ពាក្យស្លោក (អង់គ្លេស)')}
                   </label>
                   <input value={tagline} onChange={(e) => setTagline(e.target.value)} className={inputClasses} required />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">
-                    {t('Tagline (Khmer)', 'Tagline (Khmer)')}
+                    {t('Tagline (Khmer)', 'ពាក្យស្លោក (ខ្មែរ)')}
                   </label>
-                  <input value={taglineKh} onChange={(e) => setTaglineKh(e.target.value)} className={inputClasses} placeholder={t('Optional', 'Optional')} />
+                  <input value={taglineKh} onChange={(e) => setTaglineKh(e.target.value)} className={inputClasses} placeholder={t('Optional', 'ជាជម្រើស')} />
                 </div>
               </div>
 
               <div>
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">
-                  {t('Telegram Handle', 'Telegram Handle')}
+                  {t('Telegram Handle', 'ឈ្មោះតេឡេក្រាម (Telegram Handle)')}
                 </label>
                 <input value={telegramHandle} onChange={(e) => setTelegramHandle(e.target.value)} placeholder="username" className={inputClasses} required />
               </div>
 
               <div>
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">
-                  {t('Default Store Language', 'Default Store Language')}
+                  {t('Default Store Language', 'ភាសាដើមរបស់ហាង')}
                 </label>
                 <select value={defaultLang} onChange={(e) => setDefaultLang(e.target.value)} className={inputClasses}>
-                  <option value="en">English (EN)</option>
-                  <option value="kh">Khmer (KH)</option>
+                  <option value="en">{t('English (EN)', 'អង់គ្លេស (EN)')}</option>
+                  <option value="kh">{t('Khmer (KH)', 'ខ្មែរ (KH)')}</option>
                 </select>
               </div>
 
@@ -858,7 +857,7 @@ export default function AdminDashboard() {
                 disabled={isProcessingLogo || isProcessingHeroImage}
                 className="w-full bg-stone-800 text-white dark:bg-stone-100 dark:text-stone-900 py-3.5 rounded-xl font-bold mt-2 hover:opacity-90 transition-opacity active:scale-[0.98]"
               >
-                {t('Save Settings', 'Save Settings')}
+                {t('Save Settings', 'រក្សាទុកការកំណត់')}
               </button>
             </form>
           </div>
@@ -870,7 +869,7 @@ export default function AdminDashboard() {
                   <Package className="w-5 h-5 text-orange-400" />
                 </div>
                 <h2 className="text-xl font-bold text-stone-800 dark:text-white">
-                  {editingId ? t('Edit Product', 'Edit Product') : t('Add New Product', 'Add New Product')}
+                  {editingId ? t('Edit Product', 'កែសម្រួលផលិតផល') : t('Add New Product', 'បន្ថែមផលិតផលថ្មី')}
                 </h2>
               </div>
 
@@ -879,7 +878,7 @@ export default function AdminDashboard() {
                   onClick={resetForm}
                   className="text-sm font-bold text-stone-400 hover:text-orange-400 transition-colors"
                 >
-                  {t('Cancel Edit', 'Cancel Edit')}
+                  {t('Cancel Edit', 'បោះបង់ការកែសម្រួល')}
                 </button>
               )}
             </div>
@@ -887,14 +886,14 @@ export default function AdminDashboard() {
             <form onSubmit={handleSaveProduct} className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-1">
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">
-                  {t('Product Name', 'Product Name')}
+                  {t('Product Name', 'ឈ្មោះផលិតផល')}
                 </label>
                 <input value={productName} onChange={(e) => setProductName(e.target.value)} className={inputClasses} required />
               </div>
 
               <div className="md:col-span-1">
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">
-                  {t('Category', 'Category')}
+                  {t('Category', 'ប្រភេទ')}
                 </label>
 
                 <select
@@ -912,7 +911,7 @@ export default function AdminDashboard() {
                   required
                 >
                   <option value="" disabled>
-                    {t('Select a Category', 'Select a Category')}
+                    {t('Select a Category', 'ជ្រើសរើសប្រភេទ')}
                   </option>
                   {uniqueCategories.map((cat) => (
                     <option key={cat} value={cat}>
@@ -920,7 +919,7 @@ export default function AdminDashboard() {
                     </option>
                   ))}
                   <option value="new_custom" className="font-bold text-orange-500">
-                    + {t('Add New Category', 'Add New Category')}
+                    + {t('Add New Category', 'បន្ថែមប្រភេទថ្មី')}
                   </option>
                 </select>
 
@@ -929,7 +928,7 @@ export default function AdminDashboard() {
                     type="text"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    placeholder={t('Type new category...', 'Type new category...')}
+                    placeholder={t('Type new category...', 'វាយបញ្ចូលប្រភេទថ្មី...')}
                     className={`${inputClasses} mt-3 border-orange-300 ring-2 ring-orange-400/20`}
                     required
                     autoFocus
@@ -940,7 +939,7 @@ export default function AdminDashboard() {
               <div className="md:col-span-2 p-5 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
                   <label className="text-xs font-bold text-stone-400 uppercase">
-                    {t('Variants & Prices', 'Variants & Prices')}
+                    {t('Variants & Prices', 'ជម្រើសនិងតម្លៃ')}
                   </label>
                   <label className="flex items-center gap-1.5 text-xs font-bold text-stone-500 hover:text-orange-400 cursor-pointer transition-colors">
                     <input
@@ -949,7 +948,7 @@ export default function AdminDashboard() {
                       onChange={(e) => setHidePrice(e.target.checked)}
                       className="w-3.5 h-3.5 accent-orange-400"
                     />
-                    {t('Hide Prices (Ask Seller)', 'Hide Prices (Ask Seller)')}
+                    {t('Hide Prices (Ask Seller)', 'លាក់តម្លៃ (សួរអ្នកលក់)')}
                   </label>
                 </div>
 
@@ -959,7 +958,7 @@ export default function AdminDashboard() {
                       <input
                         value={variant.name}
                         onChange={(e) => updateVariant(idx, 'name', e.target.value)}
-                        placeholder={t('Variant Name (e.g., 30cm, Red)', 'Variant Name (e.g., 30cm, Red)')}
+                        placeholder={t('Variant Name (e.g., 30cm, Red)', 'ឈ្មោះជម្រើស (ឧទាហរណ៍៖ 30cm, ពណ៌ក្រហម)')}
                         className={inputClasses}
                         required
                       />
@@ -995,19 +994,19 @@ export default function AdminDashboard() {
                   onClick={addVariant}
                   className="mt-4 flex items-center gap-2 text-xs font-bold text-orange-400 hover:text-orange-500 transition-colors px-1"
                 >
-                  <Plus className="w-4 h-4" /> {t('Add Variant', 'Add Variant')}
+                  <Plus className="w-4 h-4" /> {t('Add Variant', 'បន្ថែមជម្រើស')}
                 </button>
               </div>
 
               <div className="md:col-span-2">
                 <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">
-                  {t('Product Image', 'Product Image')}
+                  {t('Product Image', 'រូបភាពផលិតផល')}
                 </label>
                 <div className="flex flex-col gap-3">
                   <input
                     value={imageUrl}
                     onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder={t('Paste an image URL...', 'Paste an image URL...')}
+                    placeholder={t('Paste an image URL...', 'បិទភ្ជាប់តំណរូបភាព...')}
                     className={inputClasses}
                     required
                   />
@@ -1015,7 +1014,7 @@ export default function AdminDashboard() {
                     className={`cursor-pointer flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 ${isProcessingImage ? 'bg-orange-100 text-orange-400' : 'bg-stone-100 hover:bg-stone-200 text-stone-600 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300'}`}
                   >
                     <UploadCloud className="w-5 h-5" />
-                    {isProcessingImage ? t('Processing...', 'Processing...') : t('Upload Local File', 'Upload Local File')}
+                    {isProcessingImage ? t('Processing...', 'កំពុងដំណើរការ...') : t('Upload Local File', 'បង្ហោះឯកសារផ្ទាល់')}
                     <input
                       type="file"
                       accept="image/*"
@@ -1034,7 +1033,7 @@ export default function AdminDashboard() {
                     <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-orange-100 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 shadow-sm">
                       <img src={imageUrl} alt="Preview" className="object-cover w-full h-full" loading="lazy" />
                     </div>
-                    <p className="text-xs text-stone-500 font-medium">{t('Image preview ready.', 'Image preview ready.')}</p>
+                    <p className="text-xs text-stone-500 font-medium">{t('Image preview ready.', 'រូបភាពត្រៀមរួចរាល់។')}</p>
                   </div>
                 )}
               </div>
@@ -1042,27 +1041,27 @@ export default function AdminDashboard() {
               <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">
-                    {t('Description (English)', 'Description (English)')}
+                    {t('Description (English)', 'ការពិពណ៌នា (អង់គ្លេស)')}
                   </label>
                   <textarea value={description} rows={3} onChange={(e) => setDescription(e.target.value)} className={`${inputClasses} resize-none`} required />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">
-                    {t('Description (Khmer)', 'Description (Khmer)')}
+                    {t('Description (Khmer)', 'ការពិពណ៌នា (ខ្មែរ)')}
                   </label>
-                  <textarea value={descriptionKh} rows={3} onChange={(e) => setDescriptionKh(e.target.value)} className={`${inputClasses} resize-none`} placeholder={t('Optional', 'Optional')} />
+                  <textarea value={descriptionKh} rows={3} onChange={(e) => setDescriptionKh(e.target.value)} className={`${inputClasses} resize-none`} placeholder={t('Optional', 'ជាជម្រើស')} />
                 </div>
               </div>
 
               <div className="md:col-span-2 flex flex-col md:flex-row gap-5 items-end">
                 <div className="w-full md:w-1/2">
                   <label className="text-xs font-bold text-stone-400 uppercase mb-2 block">
-                    {t('Stock Status', 'Stock Status')}
+                    {t('Stock Status', 'ស្ថានភាពស្តុក')}
                   </label>
                   <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputClasses}>
-                    <option value="in_stock">{t('In Stock', 'In Stock')}</option>
-                    <option value="out_of_stock">{t('Out of Stock', 'Out of Stock')}</option>
-                    <option value="check_seller">{t('Ask Seller', 'Ask Seller')}</option>
+                    <option value="in_stock">{t('In Stock', 'មានក្នុងស្តុក')}</option>
+                    <option value="out_of_stock">{t('Out of Stock', 'អស់ពីស្តុក')}</option>
+                    <option value="check_seller">{t('Ask Seller', 'សួរអ្នកលក់')}</option>
                   </select>
                 </div>
 
@@ -1072,7 +1071,7 @@ export default function AdminDashboard() {
                   className="w-full md:w-1/2 flex items-center justify-center gap-2 bg-orange-400 text-white rounded-xl font-bold py-3.5 hover:bg-orange-500 shadow-lg shadow-orange-400/20 transition-all active:scale-[0.98] disabled:opacity-50"
                 >
                   {editingId ? <Edit className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                  {editingId ? t('Update Product', 'Update Product') : t('Add Product', 'Add Product')}
+                  {editingId ? t('Update Product', 'ធ្វើបច្ចុប្បន្នភាពផលិតផល') : t('Add Product', 'បន្ថែមផលិតផល')}
                 </button>
               </div>
             </form>
@@ -1083,10 +1082,10 @@ export default function AdminDashboard() {
           <div className="p-4 sm:p-6 border-b border-orange-50 dark:border-stone-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-stone-50/50 dark:bg-stone-950/50">
             <div>
               <h2 className="text-xl font-bold text-stone-800 dark:text-white">
-                {t('Inventory Management', 'Inventory Management')}
+                {t('Inventory Management', 'ការគ្រប់គ្រងស្តុក')}
               </h2>
               <p className="text-xs sm:text-sm text-stone-500 mt-1">
-                Drag items to reorder them, use arrows to move 1 step, or bump to top.
+                {t('Drag items to reorder them, use arrows to move 1 step, or bump to top.', 'អូសធាតុដើម្បីរៀបចំវាឡើងវិញ ប្រើសញ្ញាព្រួញដើម្បីផ្លាស់ទី១ជំហាន ឬរុញទៅលើគេ។')}
               </p>
             </div>
 
@@ -1094,11 +1093,11 @@ export default function AdminDashboard() {
               {isSavingOrder && (
                 <span className="text-xs font-bold text-orange-500 flex items-center gap-1">
                   <Loader2 className="w-3 h-3 animate-spin" />
-                  Saving order...
+                  {t('Saving order...', 'កំពុងរក្សាទុកលំដាប់...')}
                 </span>
               )}
               <span className="bg-orange-50 dark:bg-stone-800 text-orange-500 dark:text-orange-400 py-1.5 px-4 rounded-full text-sm font-bold">
-                {products.length} {t('Items', 'Items')}
+                {products.length} {t('Items', 'ទំនិញ')}
               </span>
             </div>
           </div>
@@ -1106,7 +1105,7 @@ export default function AdminDashboard() {
           <div className="block lg:hidden p-4 space-y-4">
             {products.length === 0 ? (
               <div className="px-4 py-10 text-center text-stone-400 font-medium">
-                {t('No products found. Add one above!', 'No products found. Add one above!')}
+                {t('No products found. Add one above!', 'មិនមានផលិតផលទេ។ សូមបន្ថែមនៅខាងលើ!')}
               </div>
             ) : (
               products.map((product, index) => (
@@ -1156,7 +1155,7 @@ export default function AdminDashboard() {
                   <div className="mt-4 flex flex-wrap gap-2">
                     {product.hidePrice ? (
                       <span className="text-[10px] font-bold bg-stone-100 dark:bg-stone-800 px-2 py-1 rounded-md">
-                        {t('Hidden', 'Hidden')}
+                        {t('Hidden', 'លាក់')}
                       </span>
                     ) : product.variants?.length ? (
                       product.variants.map((v: any, i: number) => (
@@ -1179,19 +1178,19 @@ export default function AdminDashboard() {
                       onClick={() => handleBumpToTop(product.id)}
                       className="flex-1 min-w-[100px] p-2.5 text-blue-500 bg-blue-50 dark:bg-blue-500/10 rounded-xl font-bold text-sm"
                     >
-                      Top
+                      {t('Top', 'លើគេ')}
                     </button>
                     <button
                       onClick={() => handleEditClick(product)}
                       className="flex-1 min-w-[90px] p-2.5 text-orange-500 bg-orange-50 dark:bg-orange-500/10 rounded-xl font-bold text-sm"
                     >
-                      Edit
+                      {t('Edit', 'កែសម្រួល')}
                     </button>
                     <button
                       onClick={() => handleDeleteProduct(product.id)}
                       className="flex-1 min-w-[90px] p-2.5 text-red-500 bg-red-50 dark:bg-red-500/10 rounded-xl font-bold text-sm"
                     >
-                      Delete
+                      {t('Delete', 'លុប')}
                     </button>
                   </div>
                 </div>
@@ -1203,12 +1202,12 @@ export default function AdminDashboard() {
             <table className="w-full text-left border-collapse">
               <thead className="bg-stone-50 dark:bg-stone-950 text-stone-400 text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="px-6 py-5 font-bold">Order</th>
-                  <th className="px-6 py-5 font-bold">{t('Product', 'Product')}</th>
-                  <th className="px-6 py-5 font-bold">{t('Category', 'Category')}</th>
-                  <th className="px-6 py-5 font-bold">{t('Variants & Prices', 'Variants & Prices')}</th>
-                  <th className="px-6 py-5 font-bold">{t('Status', 'Status')}</th>
-                  <th className="px-6 py-5 font-bold text-right">{t('Actions', 'Actions')}</th>
+                  <th className="px-6 py-5 font-bold">{t('Order', 'លំដាប់')}</th>
+                  <th className="px-6 py-5 font-bold">{t('Product', 'ផលិតផល')}</th>
+                  <th className="px-6 py-5 font-bold">{t('Category', 'ប្រភេទ')}</th>
+                  <th className="px-6 py-5 font-bold">{t('Variants & Prices', 'ជម្រើសនិងតម្លៃ')}</th>
+                  <th className="px-6 py-5 font-bold">{t('Status', 'ស្ថានភាព')}</th>
+                  <th className="px-6 py-5 font-bold text-right">{t('Actions', 'សកម្មភាព')}</th>
                 </tr>
               </thead>
 
@@ -1216,7 +1215,7 @@ export default function AdminDashboard() {
                 {products.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-stone-400 font-medium">
-                      {t('No products found. Add one above!', 'No products found. Add one above!')}
+                      {t('No products found. Add one above!', 'មិនមានផលិតផលទេ។ សូមបន្ថែមនៅខាងលើ!')}
                     </td>
                   </tr>
                 ) : (
@@ -1263,7 +1262,7 @@ export default function AdminDashboard() {
                       <td className="px-6 py-5">
                         {product.hidePrice ? (
                           <span className="text-stone-400 text-sm font-bold bg-stone-100 dark:bg-stone-800 px-2 py-1 rounded-md">
-                            {t('Hidden', 'Hidden')}
+                            {t('Hidden', 'លាក់')}
                           </span>
                         ) : (
                           <div className="flex flex-wrap gap-1">
@@ -1296,10 +1295,10 @@ export default function AdminDashboard() {
                           }`}
                         >
                           {product.status === 'in_stock'
-                            ? t('In Stock', 'In Stock')
+                            ? t('In Stock', 'មានក្នុងស្តុក')
                             : product.status === 'out_of_stock'
-                            ? t('Out of Stock', 'Out of Stock')
-                            : t('Ask Seller', 'Ask Seller')}
+                            ? t('Out of Stock', 'អស់ពីស្តុក')
+                            : t('Ask Seller', 'សួរអ្នកលក់')}
                         </span>
                       </td>
 
@@ -1308,15 +1307,15 @@ export default function AdminDashboard() {
                           <button
                             onClick={() => handleBumpToTop(product.id)}
                             className="p-2.5 text-blue-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-stone-800 rounded-xl transition-colors text-xs font-bold"
-                            title={t('Move to Top', 'Move to Top')}
+                            title={t('Move to Top', 'រុញទៅលើគេ')}
                           >
-                            Top
+                            {t('Top', 'លើគេ')}
                           </button>
 
                           <button
                             onClick={() => handleEditClick(product)}
                             className="p-2.5 text-stone-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-stone-800 rounded-xl transition-colors"
-                            title={t('Edit', 'Edit')}
+                            title={t('Edit', 'កែសម្រួល')}
                           >
                             <Edit className="w-4 h-4" />
                           </button>
@@ -1324,7 +1323,7 @@ export default function AdminDashboard() {
                           <button
                             onClick={() => handleDeleteProduct(product.id)}
                             className="p-2.5 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
-                            title={t('Delete', 'Delete')}
+                            title={t('Delete', 'លុប')}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
