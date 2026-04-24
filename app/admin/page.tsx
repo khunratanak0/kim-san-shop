@@ -33,6 +33,7 @@ import {
   ArrowUp,
   ArrowDown,
   GripVertical,
+  ChevronDown,
 } from 'lucide-react';
 
 const DEFAULT_CATEGORY = 'General';
@@ -43,6 +44,7 @@ export default function AdminDashboard() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [lang, setLang] = useState('en');
+  const [showSettings, setShowSettings] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -666,16 +668,24 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           <div className="bg-white dark:bg-stone-900 p-5 sm:p-8 rounded-3xl shadow-sm border border-orange-50 dark:border-stone-800 xl:col-span-1 h-fit animate-fade-up">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="p-2 bg-orange-50 dark:bg-stone-800 rounded-lg">
-                <Settings className="w-5 h-5 text-orange-400" />
+            <div 
+              className="flex items-center justify-between mb-8 cursor-pointer xl:cursor-default"
+              onClick={() => setShowSettings(!showSettings)}
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-50 dark:bg-stone-800 rounded-lg">
+                  <Settings className="w-5 h-5 text-orange-400" />
+                </div>
+                <h2 className="text-xl font-bold text-stone-800 dark:text-white">
+                  {t('Store Settings', 'ការកំណត់ហាង')}
+                </h2>
               </div>
-              <h2 className="text-xl font-bold text-stone-800 dark:text-white">
-                {t('Store Settings', 'ការកំណត់ហាង')}
-              </h2>
+              <ChevronDown 
+                className={`w-5 h-5 text-stone-400 transition-transform xl:hidden ${showSettings ? 'rotate-180' : ''}`} 
+              />
             </div>
 
-            <form onSubmit={handleSaveSettings} className="flex flex-col gap-6">
+            <form onSubmit={handleSaveSettings} className={`flex flex-col gap-6 ${showSettings ? 'flex' : 'hidden xl:flex'}`}>
               <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 flex flex-col gap-4">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold text-stone-400 uppercase">
@@ -1036,11 +1046,20 @@ export default function AdminDashboard() {
                 </div>
 
                 {imageUrl && (
-                  <div className="mt-4 flex items-center gap-4">
-                    <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-orange-100 dark:border-stone-700 bg-stone-50 dark:bg-stone-950 shadow-sm">
-                      <img src={imageUrl} alt="Preview" className="object-cover w-full h-full" loading="lazy" />
+                  <div className="mt-4 flex items-center justify-between bg-stone-50 dark:bg-stone-950 p-3 rounded-xl border border-stone-100 dark:border-stone-800">
+                    <div className="flex items-center gap-4">
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-orange-100 dark:border-stone-700 bg-white dark:bg-stone-900 shadow-sm shrink-0">
+                        <img src={imageUrl} alt="Preview" className="object-cover w-full h-full" loading="lazy" />
+                      </div>
+                      <p className="text-xs text-stone-500 font-medium">{t('Image ready.', 'រូបភាពត្រៀមរួចរាល់។')}</p>
                     </div>
-                    <p className="text-xs text-stone-500 font-medium">{t('Image preview ready.', 'រូបភាពត្រៀមរួចរាល់។')}</p>
+                    <button
+                      type="button"
+                      onClick={() => setImageUrl('')}
+                      className="p-2 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-bold"
+                    >
+                      <X className="w-4 h-4" /> <span className="hidden sm:inline">{t('Remove', 'លុប')}</span>
+                    </button>
                   </div>
                 )}
               </div>
