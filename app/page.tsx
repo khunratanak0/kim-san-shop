@@ -3,11 +3,12 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
-import { Search, FilterX } from 'lucide-react';
+import { Search, FilterX, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
 
-const DEFAULT_CATEGORY = 'General';
+const DEFAULT_CATEGORY = '';
+const PRODUCTS_PER_PAGE = 30;
 
 const SkeletonCard = () => (
   <div className="bg-white dark:bg-stone-900 rounded-3xl h-[430px] animate-pulse flex flex-col border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
@@ -48,6 +49,7 @@ export default function Storefront() {
 
   const [showSearchBar, setShowSearchBar] = useState(true);
   const [compactSearchBar, setCompactSearchBar] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(PRODUCTS_PER_PAGE);
 
   const lastScrollY = useRef(0);
 
@@ -103,20 +105,33 @@ export default function Storefront() {
     fetchStorefrontData();
   }, [fetchStorefrontData]);
 
+  // Reset limit when filters change
   useEffect(() => {
+    setDisplayLimit(PRODUCTS_PER_PAGE);
+  }, [searchQuery, categoryFilter, stockFilter]);
+
+  useEffect(() => {
+    let ticking = false;
     const onScroll = () => {
-      const currentY = window.scrollY;
-      setCompactSearchBar(currentY > 100);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentY = window.scrollY;
+          setCompactSearchBar(currentY > 100);
 
-      if (currentY < 80) {
-        setShowSearchBar(true);
-      } else if (currentY > lastScrollY.current + 8) {
-        setShowSearchBar(false);
-      } else if (currentY < lastScrollY.current - 8) {
-        setShowSearchBar(true);
+          // Ignore negative scroll (bounce effect on mobile)
+          if (currentY <= 0) {
+            setShowSearchBar(true);
+          } else if (currentY > lastScrollY.current + 15) { // Increased threshold slightly for less twitching
+            setShowSearchBar(false);
+          } else if (currentY < lastScrollY.current - 15) {
+            setShowSearchBar(true);
+          }
+
+          lastScrollY.current = currentY > 0 ? currentY : 0;
+          ticking = false;
+        });
+        ticking = true;
       }
-
-      lastScrollY.current = currentY;
     };
 
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -138,7 +153,9 @@ export default function Storefront() {
   }, [fetchStorefrontData]);
 
   const uniqueCategories = useMemo(() => {
-    const cats = products.map((p) => p.category || DEFAULT_CATEGORY);
+    const cats = products
+      .map((p) => p.category)
+      .filter((c) => c && c.trim() !== ''); // This removes the blanks
     return Array.from(new Set(cats));
   }, [products]);
 
@@ -158,6 +175,9 @@ export default function Storefront() {
       return matchesSearch && matchesStock && matchesCategory;
     });
   }, [products, searchQuery, stockFilter, categoryFilter]);
+
+  const displayedProducts = filteredProducts.slice(0, displayLimit);
+  const hasMore = displayLimit < filteredProducts.length;
 
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-300 selection:bg-orange-200 selection:text-orange-900">
@@ -193,7 +213,8 @@ export default function Storefront() {
         <div
           className={[
             'sticky z-40 mb-8 sm:mb-10 transition-all duration-500 ease-in-out',
-            'top-[calc(env(safe-area-inset-top)+0.5rem)] md:top-24',
+            // Position shifted lower on mobile to prevent hiding beneath the sticky header (min-h-20)
+            'top-[88px] md:top-24',
             showSearchBar ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none'
           ].join(' ')}
         >
@@ -216,7 +237,7 @@ export default function Storefront() {
                 />
               </div>
 
-              <div className="flex gap-2 overflow-x-auto no-scrollbar md:overflow-visible md:border-l md:border-stone-200 dark:md:border-stone-800 md:pl-3">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar md:overflow-visible md:border-l md:border-stone-200 dark:md:border-stone-800 md:pl-3 shrink-0">
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
@@ -254,7 +275,7 @@ export default function Storefront() {
         ) : products.length === 0 ? (
           <div className="text-center text-stone-500 py-20 bg-white dark:bg-stone-900 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
             <p className="text-lg font-bold text-stone-800 dark:text-white mb-2">
-              {t('Your catalog is empty.', 'កាតាឡុករបស់អ្នកទទេរ។')}
+              {t('Your catalog is empty.', 'កាតាឡុករបស់អ្នកទទេរ៉។')}
             </p>
             <p className="text-sm text-stone-800 dark:text-stone-200 font-semibold">
               {t(
@@ -286,21 +307,35 @@ export default function Storefront() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-8">
-            {filteredProducts.map((product, index) => (
-              <div
-                key={product.id}
-                className="animate-fade-up"
-                style={{ animationDelay: `${index * 40}ms` }}
-              >
-                <ProductCard
-                  product={product}
-                  telegramHandle={settings.telegramHandle}
-                  lang={lang}
-                />
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-8">
+              {displayedProducts.map((product, index) => (
+                <div
+                  key={product.id}
+                  className="animate-fade-up"
+                  style={{ animationDelay: `${(index % PRODUCTS_PER_PAGE) * 40}ms` }}
+                >
+                  <ProductCard
+                    product={product}
+                    telegramHandle={settings.telegramHandle}
+                    lang={lang}
+                  />
+                </div>
+              ))}
+            </div>
+            
+            {hasMore && (
+              <div className="mt-12 text-center">
+                <button
+                  onClick={() => setDisplayLimit(prev => prev + PRODUCTS_PER_PAGE)}
+                  className="inline-flex items-center gap-2 px-8 py-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 hover:border-orange-300 dark:hover:border-orange-500/50 rounded-2xl font-bold text-stone-800 dark:text-stone-200 hover:text-orange-500 transition-all duration-300 shadow-sm active:scale-95"
+                >
+                  <Loader2 className="w-5 h-5 animate-spin hidden" /> {/* Useful if you want to add loading states later */}
+                  {t('Load More Products', 'ផ្ទុកផលិតផលបន្ថែម')}
+                </button>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </main>
     </div>
