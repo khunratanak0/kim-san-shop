@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTheme } from 'next-themes';
+import { CldUploadWidget } from 'next-cloudinary';
 import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import {
@@ -1010,22 +1011,28 @@ export default function AdminDashboard() {
                     className={inputClasses}
                     required
                   />
-                  <label
-                    className={`cursor-pointer flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 ${isProcessingImage ? 'bg-orange-100 text-orange-400' : 'bg-stone-100 hover:bg-stone-200 text-stone-600 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300'}`}
+                  <CldUploadWidget 
+                    uploadPreset="kimsan285"
+                    onSuccess={(result: any) => {
+                      const newImageUrl = result?.info?.secure_url;
+                      if (newImageUrl) {
+                        setImageUrl(newImageUrl);
+                      }
+                    }}
                   >
-                    <UploadCloud className="w-5 h-5" />
-                    {isProcessingImage ? t('Processing...', 'កំពុងដំណើរការ...') : t('Upload Local File', 'បង្ហោះឯកសារផ្ទាល់')}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onClick={(e) => {
-                        (e.target as HTMLInputElement).value = '';
-                      }}
-                      onChange={handleProductImageUpload}
-                      className="hidden"
-                      disabled={isProcessingImage}
-                    />
-                  </label>
+                    {({ open }) => {
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => open()}
+                          className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-sm transition-all duration-300 bg-stone-100 hover:bg-stone-200 text-stone-600 dark:bg-stone-800 dark:hover:bg-stone-700 dark:text-stone-300"
+                        >
+                          <UploadCloud className="w-5 h-5" />
+                          {t('Upload via Cloudinary', 'បង្ហោះតាមរយៈ Cloudinary')}
+                        </button>
+                      );
+                    }}
+                  </CldUploadWidget>
                 </div>
 
                 {imageUrl && (
