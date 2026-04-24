@@ -1,1 +1,0 @@
-when pressed the go back button and it doesn't load have to refresh

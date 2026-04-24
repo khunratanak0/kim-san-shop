@@ -1,26 +1,40 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { Providers } from './providers'; // Import the provider
+import { Providers } from './providers';
 
-// Fetch settings for dynamic OpenGraph metadata
 async function getStoreSettings() {
   try {
-    const projectId = "YOUR_FIREBASE_PROJECT_ID"; 
-    const res = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/global`, { next: { revalidate: 60 } });
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+    if (!projectId) {
+      return null;
+    }
+
+    const res = await fetch(
+      `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/global`,
+      {
+        next: { revalidate: 60 },
+      }
+    );
+
     if (!res.ok) return null;
+
     const data = await res.json();
     return data.fields;
   } catch (error) {
+    console.error('Metadata fetch failed:', error);
     return null;
   }
 }
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getStoreSettings();
-  
-  const storeName = settings?.storeName?.stringValue || "Kim San Shop";
-  const tagline = settings?.tagline?.stringValue || "Curated excellence. Discover our exclusive collection.";
-  const heroImageUrl = settings?.heroImageUrl?.stringValue || "";
+
+  const storeName = settings?.storeName?.stringValue || 'Kim San Shop';
+  const tagline =
+    settings?.tagline?.stringValue ||
+    'Curated excellence. Discover our exclusive collection.';
+  const heroImageUrl = settings?.heroImageUrl?.stringValue || '';
 
   return {
     title: storeName,
@@ -36,19 +50,19 @@ export async function generateMetadata(): Promise<Metadata> {
       title: storeName,
       description: tagline,
       images: heroImageUrl ? [heroImageUrl] : [],
-    }
+    },
   };
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    // suppressHydrationWarning is REQUIRED for next-themes
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased">
-        {/* Wrap your children in the Providers */}
-        <Providers>
-          {children}
-        </Providers>
+      <body className="antialiased min-h-screen bg-background text-foreground">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

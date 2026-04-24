@@ -1,21 +1,28 @@
 'use client';
+
 import { ThemeProvider } from 'next-themes';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
 
+  // BULLETPROOF BACK BUTTON FIX:
+  // Next.js soft-routing caches the body state. This hook watches the actual URL route.
+  // Every time you navigate (e.g., hitting the back button from /admin to /), 
+  // it forcefully strips away any stuck scroll locks.
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <>{children}</>;
-  }
+    document.body.style.overflow = '';
+    document.body.style.pointerEvents = '';
+  }, [pathname]);
 
   return (
-    // Removed "disableTransitionOnChange" to restore smooth color transitions!
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange={false}
+    >
       {children}
     </ThemeProvider>
   );

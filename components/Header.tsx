@@ -1,4 +1,5 @@
 'use client';
+
 import { useTheme } from 'next-themes';
 import { Sun, Moon, ShoppingBag } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -13,7 +14,14 @@ interface HeaderProps {
   toggleLang: () => void;
 }
 
-export default function Header({ storeName, logoUrl, logoSize = 48, logoOffsetY = 0, lang, toggleLang }: HeaderProps) {
+export default function Header({
+  storeName,
+  logoUrl,
+  logoSize = 48,
+  logoOffsetY = 0,
+  lang,
+  toggleLang,
+}: HeaderProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -21,27 +29,27 @@ export default function Header({ storeName, logoUrl, logoSize = 48, logoOffsetY 
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-orange-100/50 bg-white/80 backdrop-blur-md dark:border-stone-800 dark:bg-stone-950/80 transition-colors duration-300">
-      <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3 group">
+      <div className="container mx-auto px-4 sm:px-6 min-h-20 py-3 flex items-center justify-between gap-3">
+        <Link href="/" className="flex items-center gap-3 group min-w-0">
           {logoUrl ? (
-            <img 
-              src={logoUrl} 
-              alt={`${storeName} Logo`} 
-              style={{ height: `${logoSize}px`, transform: `translateY(${logoOffsetY}px)` }} 
-              className="object-contain w-auto group-hover:scale-105 transition-transform duration-300 rounded-lg"
+            <img
+              src={logoUrl}
+              alt={`${storeName} Logo`}
+              style={{ height: `${logoSize}px`, transform: `translateY(${logoOffsetY}px)` }}
+              className="object-contain w-auto max-w-[56px] sm:max-w-none group-hover:scale-105 transition-transform duration-300 rounded-lg shrink-0"
             />
           ) : (
-            <div className="bg-orange-50 dark:bg-stone-800 p-2.5 rounded-2xl group-hover:bg-orange-100 dark:group-hover:bg-stone-700 transition-all duration-300">
+            <div className="bg-orange-50 dark:bg-stone-800 p-2.5 rounded-2xl group-hover:bg-orange-100 dark:group-hover:bg-stone-700 transition-all duration-300 shrink-0">
               <ShoppingBag className="w-5 h-5 text-orange-400 group-hover:scale-110 transition-transform" />
             </div>
           )}
-          <span className="font-extrabold text-xl tracking-tight text-stone-800 dark:text-stone-100 uppercase">
-            {storeName || "KIM SAN SHOP"}
+
+          <span className="font-extrabold text-base sm:text-xl tracking-tight text-stone-800 dark:text-stone-100 uppercase truncate">
+            {storeName || 'KIM SAN SHOP'}
           </span>
         </Link>
-        
-        <div className="flex items-center gap-2">
-          {/* Animated Language Toggle */}
+
+        <div className="flex items-center gap-2 shrink-0">
           {mounted && (
             <button
               onClick={toggleLang}
@@ -57,7 +65,6 @@ export default function Header({ storeName, logoUrl, logoSize = 48, logoOffsetY 
             </button>
           )}
 
-          {/* Theme Toggle */}
           {mounted && (
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
