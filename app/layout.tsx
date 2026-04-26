@@ -39,6 +39,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: storeName,
     description: tagline,
+    appleWebApp: {
+      title: 'Kim San',
+    },
     openGraph: {
       title: storeName,
       description: tagline,
