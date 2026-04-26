@@ -15,7 +15,7 @@ async function getStoreSettings() {
     const res = await fetch(
       `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/global`,
       {
-        next: { revalidate: 60 },
+        next: { revalidate: 0 },
       }
     );
 
