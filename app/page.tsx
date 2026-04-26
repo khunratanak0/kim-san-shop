@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
-import { Search, FilterX, Loader2 } from 'lucide-react';
+import { Search, FilterX, Loader2, MapPin, Globe } from 'lucide-react';
 import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
 
@@ -45,6 +45,9 @@ export default function Storefront() {
     heroImageUrl: '',
     heroImageSize: 128,
     defaultLang: 'en',
+    facebookUrl: '',
+    tiktokUrl: '',
+    mapsUrl: '',
   });
 
   const [loading, setLoading] = useState(true);
@@ -247,6 +250,26 @@ export default function Storefront() {
           <p className="text-base sm:text-lg text-stone-800 dark:text-stone-200 font-semibold leading-relaxed">
             {lang === 'kh' && settings.taglineKh ? settings.taglineKh : settings.tagline}
           </p>
+          <div className="flex flex-wrap items-center justify-center gap-4 mt-6 animate-fade-up" style={{ animationDelay: '100ms' }}>
+            {settings.facebookUrl && (
+              <a href={settings.facebookUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95">
+                <Globe className="w-4 h-4" /> Facebook
+              </a>
+            )}
+            {settings.tiktokUrl && (
+              <a href={settings.tiktokUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-stone-100 text-stone-800 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95">
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                </svg>
+                TikTok
+              </a>
+            )}
+            {settings.mapsUrl && (
+              <a href={settings.mapsUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95">
+                <MapPin className="w-4 h-4" /> {lang === 'kh' ? 'ទីតាំង' : 'Location'}
+              </a>
+            )}
+          </div>
         </div>
 
         <div

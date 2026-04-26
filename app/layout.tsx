@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from './providers';
+// NEW: Import Vercel Analytics
+import { Analytics } from '@vercel/analytics/react';
 
 async function getStoreSettings() {
   try {

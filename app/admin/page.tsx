@@ -173,6 +173,9 @@ export default function AdminDashboard() {
   const [taglineKh, setTaglineKh] = useState('');
   const[telegramHandle, setTelegramHandle] = useState('');
   const [defaultLang, setDefaultLang] = useState('en');
+  const [facebookUrl, setFacebookUrl] = useState('');
+  const [tiktokUrl, setTiktokUrl] = useState('');
+  const [mapsUrl, setMapsUrl] = useState('');
 
   const [logoUrl, setLogoUrl] = useState('');
   const [logoSize, setLogoSize] = useState(48);
@@ -210,6 +213,21 @@ export default function AdminDashboard() {
 
   const t = (en: string, kh: string) => (lang === 'kh' ? kh : en);
 
+  // NEW: Activity Logger
+  const logActivity = async (action: string, targetName: string) => {
+    try {
+      const adminIdentity = auth.currentUser?.displayName || auth.currentUser?.email || 'Unknown Admin';
+      await addDoc(collection(db, 'activityLogs'), {
+        admin: adminIdentity,
+        action,
+        target: targetName,
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      console.error('Failed to log activity:', error);
+    }
+  };
+
   const toggleLang = () => {
     const newLang = lang === 'en' ? 'kh' : 'en';
     setLang(newLang);
@@ -241,6 +259,9 @@ export default function AdminDashboard() {
         setLogoOffsetY(data.logoOffsetY || 0);
         setHeroImageUrl(data.heroImageUrl || '');
         setHeroImageSize(data.heroImageSize || 128);
+        setFacebookUrl(data.facebookUrl || '');
+        setTiktokUrl(data.tiktokUrl || '');
+        setMapsUrl(data.mapsUrl || '');
         setGlobalCategories(data.categories ||[]);
       }
     });
@@ -331,6 +352,9 @@ export default function AdminDashboard() {
           taglineKh,
           telegramHandle,
           defaultLang,
+          facebookUrl,
+          tiktokUrl,
+          mapsUrl,
           logoUrl,
           logoSize,
           logoOffsetY,
@@ -613,6 +637,7 @@ export default function AdminDashboard() {
       if (editingId) {
         await updateDoc(doc(db, 'products', editingId), productData);
         alert(t('Product Updated!', 'បានធ្វើបច្ចុប្បន្នភាពផលិតផល!'));
+        await logActivity('Updated Product', productName);
       } else {
         await addDoc(collection(db, 'products'), {
           ...productData,
@@ -620,6 +645,7 @@ export default function AdminDashboard() {
           manualOrder: products.length,
         });
         alert(t('Product Added!', 'បានបន្ថែមផលិតផល!'));
+        await logActivity('Added Product', productName);
       }
 
       resetForm();
@@ -656,11 +682,14 @@ export default function AdminDashboard() {
 
   const handleDeleteProduct = useCallback(async (id: string) => {
     if (window.confirm(t('Are you sure you want to delete this product?', 'តើអ្នកប្រាកដជាចង់លុបផលិតផលនេះទេ?'))) {
+      const productToDelete = products.find((product) => product.id === id);
+      const targetName = productToDelete?.name || id;
       await deleteDoc(doc(db, 'products', id));
+      await logActivity('Deleted Product', targetName);
       await fetchData();
       setSelectedProductIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     }
-  }, [t, fetchData]);
+  }, [t, fetchData, products]);
 
   // Bulk Actions
   const toggleSelection = useCallback((id: string) => {
@@ -984,6 +1013,13 @@ export default function AdminDashboard() {
                 {t('View Store', 'មើលហាង')}
               </Link>
 
+              <Link
+                href="/admin/logs"
+                className="flex items-center gap-2 px-4 sm:px-5 py-3 bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 rounded-xl font-bold hover:bg-orange-200 dark:hover:bg-orange-500/20 transition-colors w-full sm:flex-1 md:flex-none justify-center"
+              >
+                {t('Activity Logs', 'កំណត់ហេតុសកម្មភាព')}
+              </Link>
+
               <button
                 onClick={() => signOut(auth)}
                 className="flex items-center gap-2 px-4 sm:px-5 py-3 bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400 rounded-xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors w-full sm:flex-1 md:flex-none justify-center"
@@ -1137,6 +1173,13 @@ export default function AdminDashboard() {
                     <option value="en">{t('English (EN)', 'អង់គ្លេស (EN)')}</option>
                     <option value="kh">{t('Khmer (KH)', 'ខ្មែរ (KH)')}</option>
                   </select>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 flex flex-col gap-4 mt-4">
+                  <label className="text-xs font-bold text-stone-400 uppercase">{t('Social & Map Links', 'តំណភ្ជាប់សង្គម')}</label>
+                  <input value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} placeholder="Facebook Page URL" className={inputClasses} />
+                  <input value={tiktokUrl} onChange={(e) => setTiktokUrl(e.target.value)} placeholder="TikTok Profile URL" className={inputClasses} />
+                  <input value={mapsUrl} onChange={(e) => setMapsUrl(e.target.value)} placeholder="Google Maps Link" className={inputClasses} />
                 </div>
 
                 <button type="submit" disabled={isProcessingLogo || isProcessingHeroImage} className="w-full bg-stone-800 text-white dark:bg-stone-100 dark:text-stone-900 py-3.5 rounded-xl font-bold mt-2 hover:opacity-90 transition-opacity active:scale-[0.98]">
