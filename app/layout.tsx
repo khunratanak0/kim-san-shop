@@ -35,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const storeName = settings?.storeName?.stringValue || 'Kim San Shop';
   const tagline =
     settings?.tagline?.stringValue ||
-    'Curated excellence. Discover our exclusive collection.';
+    'Welcome to Kim San Shop';
   const heroImageUrl = settings?.heroImageUrl?.stringValue || '';
 
   return {

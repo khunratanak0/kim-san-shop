@@ -36,7 +36,7 @@ export default function Storefront() {
   });
   const [settings, setSettings] = useState({
     storeName: 'KIM SAN SHOP CATALOG',
-    tagline: 'Curated excellence. Discover our exclusive collection.',
+    tagline: '',
     taglineKh: '',
     telegramHandle: 'your_telegram_username',
     logoUrl: '',
