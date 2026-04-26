@@ -247,7 +247,7 @@ export default function Storefront() {
             {settings.storeName}
           </h1>
 
-          <p className="text-base sm:text-lg text-stone-800 dark:text-stone-200 font-semibold leading-relaxed">
+          <p className="text-base sm:text-lg text-black dark:text-stone-200 font-semibold leading-relaxed">
             {lang === 'kh' && settings.taglineKh ? settings.taglineKh : settings.tagline}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4 mt-6 animate-fade-up" style={{ animationDelay: '100ms' }}>

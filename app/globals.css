@@ -36,7 +36,11 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Khmer OS System", Hanuman, sans-serif;
+  font-family: "Khmer OS System", "Noto Sans Khmer", Hanuman, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
   transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
 }
 

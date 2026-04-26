@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from './providers';
 // NEW: Import Vercel Analytics
-import { Analytics } from '@vercel/analytics/react';
+import { Analytics } from '@vercel/analytics/next';
 
 async function getStoreSettings() {
   try {
@@ -66,8 +66,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased min-h-screen bg-background text-foreground">
+      <body className="subpixel-antialiased min-h-screen bg-background text-foreground text-black dark:text-white">
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );
