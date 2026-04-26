@@ -13,12 +13,19 @@ export default function ActivityLogs() {
   useEffect(() => {
     const fetchLogs = async () => {
       try {
+        console.log('[LOGS] Fetching activity logs from Firestore...');
         const q = query(collection(db, 'activityLogs'), orderBy('timestamp', 'desc'), limit(100));
         const snapshot = await getDocs(q);
-        const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(`[LOGS] Retrieved ${snapshot.size} log documents`);
+        
+        const fetchedLogs = snapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('[LOGS] Log entry:', data);
+          return { id: doc.id, ...data };
+        });
         setLogs(fetchedLogs);
       } catch (error) {
-        console.error('Error fetching logs:', error);
+        console.error('[LOGS ERROR] Failed to fetch logs:', error);
       } finally {
         setLoading(false);
       }
@@ -57,6 +64,9 @@ export default function ActivityLogs() {
                     <p className="font-bold text-stone-800 dark:text-white">
                       <span className="text-orange-500">{log.admin}</span> {log.action}: <span className="text-stone-500 dark:text-stone-400">{log.target}</span>
                     </p>
+                    {log.details && (
+                      <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{log.details}</p>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 text-xs font-bold text-stone-400 bg-stone-100 dark:bg-stone-800 px-3 py-1.5 rounded-lg w-fit shrink-0">
                     <Clock className="w-3.5 h-3.5" />

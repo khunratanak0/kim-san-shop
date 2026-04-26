@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
-import { Search, FilterX, Loader2, MapPin, Globe } from 'lucide-react';
+import { Search, FilterX, Loader2, MapPin } from 'lucide-react';
 import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
 
@@ -253,7 +253,10 @@ export default function Storefront() {
           <div className="flex flex-wrap items-center justify-center gap-4 mt-6 animate-fade-up" style={{ animationDelay: '100ms' }}>
             {settings.facebookUrl && (
               <a href={settings.facebookUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95">
-                <Globe className="w-4 h-4" /> Facebook
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22.675 0H1.326C.593 0 0 .593 0 1.326v21.348C0 23.407.593 24 1.326 24H12.82V14.706h-3.128v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.464.099 2.796.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116C23.407 24 24 23.407 24 22.674V1.326C24 .593 23.407 0 22.675 0z" />
+                </svg>
+                Facebook
               </a>
             )}
             {settings.tiktokUrl && (

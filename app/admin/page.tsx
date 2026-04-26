@@ -195,6 +195,7 @@ export default function AdminDashboard() {
   const [variants, setVariants] = useState<{ name: string; price: string }[]>([
     { name: 'Standard', price: '' },
   ]);
+  const [originalSettings, setOriginalSettings] = useState<any>(null);
   const [hidePrice, setHidePrice] = useState(false);
   const[imageUrl, setImageUrl] = useState('');
   const [status, setStatus] = useState('in_stock');
@@ -213,19 +214,55 @@ export default function AdminDashboard() {
 
   const t = (en: string, kh: string) => (lang === 'kh' ? kh : en);
 
-  // NEW: Activity Logger
-  const logActivity = async (action: string, targetName: string) => {
+  // NEW: Activity Logger - IMPROVED
+  const logActivity = useCallback(async (action: string, targetName: string, details?: string) => {
     try {
-      const adminIdentity = auth.currentUser?.displayName || auth.currentUser?.email || 'Unknown Admin';
-      await addDoc(collection(db, 'activityLogs'), {
+      const currentUser = user || auth.currentUser;
+      const adminIdentity = currentUser?.displayName || currentUser?.email || 'Unknown Admin';
+      
+      console.log(`[LOG] Action: ${action}, Target: ${targetName}, Admin: ${adminIdentity}`);
+      
+      const logEntry = {
         admin: adminIdentity,
         action,
         target: targetName,
+        details: details || '',
         timestamp: Date.now(),
-      });
+        createdAt: new Date().toISOString(),
+      };
+      
+      const docRef = await addDoc(collection(db, 'activityLogs'), logEntry);
+      console.log(`[LOG] Activity logged successfully with ID: ${docRef.id}`);
     } catch (error) {
-      console.error('Failed to log activity:', error);
+      console.error('[LOG ERROR] Failed to log activity:', error);
+      console.error('[LOG ERROR] Details:', { action, targetName, details });
     }
+  }, [user]);
+
+  const getSettingsDiff = (oldSettings: any, newSettings: any) => {
+    if (!oldSettings) return [];
+    const changed: string[] = [];
+    const keys = [
+      'storeName',
+      'tagline',
+      'taglineKh',
+      'telegramHandle',
+      'defaultLang',
+      'facebookUrl',
+      'tiktokUrl',
+      'mapsUrl',
+      'logoUrl',
+      'logoSize',
+      'logoOffsetY',
+      'heroImageUrl',
+      'heroImageSize',
+    ];
+    keys.forEach((key) => {
+      if ((oldSettings[key] ?? '') !== (newSettings[key] ?? '')) {
+        changed.push(key);
+      }
+    });
+    return changed;
   };
 
   const toggleLang = () => {
@@ -262,7 +299,22 @@ export default function AdminDashboard() {
         setFacebookUrl(data.facebookUrl || '');
         setTiktokUrl(data.tiktokUrl || '');
         setMapsUrl(data.mapsUrl || '');
-        setGlobalCategories(data.categories ||[]);
+        setGlobalCategories(data.categories || []);
+        setOriginalSettings({
+          storeName: data.storeName || '',
+          tagline: data.tagline || '',
+          taglineKh: data.taglineKh || '',
+          telegramHandle: data.telegramHandle || '',
+          defaultLang: data.defaultLang || 'en',
+          facebookUrl: data.facebookUrl || '',
+          tiktokUrl: data.tiktokUrl || '',
+          mapsUrl: data.mapsUrl || '',
+          logoUrl: data.logoUrl || '',
+          logoSize: data.logoSize || 48,
+          logoOffsetY: data.logoOffsetY || 0,
+          heroImageUrl: data.heroImageUrl || '',
+          heroImageSize: data.heroImageSize || 128,
+        });
       }
     });
 
@@ -344,25 +396,33 @@ export default function AdminDashboard() {
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const settingsPayload = {
+        storeName,
+        tagline,
+        taglineKh,
+        telegramHandle,
+        defaultLang,
+        facebookUrl,
+        tiktokUrl,
+        mapsUrl,
+        logoUrl,
+        logoSize,
+        logoOffsetY,
+        heroImageUrl,
+        heroImageSize,
+      };
+
       await setDoc(
         doc(db, 'settings', 'global'),
-        {
-          storeName,
-          tagline,
-          taglineKh,
-          telegramHandle,
-          defaultLang,
-          facebookUrl,
-          tiktokUrl,
-          mapsUrl,
-          logoUrl,
-          logoSize,
-          logoOffsetY,
-          heroImageUrl,
-          heroImageSize,
-        },
+        settingsPayload,
         { merge: true }
       );
+
+      const changedFields = getSettingsDiff(originalSettings, settingsPayload);
+      const details = changedFields.length > 0 ? `Updated fields: ${changedFields.join(', ')}` : 'Saved store settings';
+      await logActivity('Updated Store Settings', 'Store Settings', details);
+
+      setOriginalSettings(settingsPayload);
       alert(t('Settings Saved Successfully!', 'រក្សាទុកការកំណត់ដោយជោគជ័យ!'));
     } catch (error) {
       console.error('Error saving settings', error);
@@ -388,6 +448,8 @@ export default function AdminDashboard() {
           await batch.commit();
           await fetchData(); 
         }
+
+        await logActivity('Deleted Category', catToDelete, `Removed category and unassigned ${productsToUpdate.length} product(s)`);
       } catch(error) {
         console.error('Error removing category', error);
       }
@@ -425,6 +487,7 @@ export default function AdminDashboard() {
         await batch.commit();
         await fetchData();
       }
+      await logActivity('Renamed Category', `${oldName} → ${trimmedName}`, `Updated ${productsToUpdate.length} product(s)`);
     } catch(error) {
       console.error('Error renaming category', error);
       alert(t('Failed to rename category.', 'បរាជ័យក្នុងការប្តូរឈ្មោះប្រភេទ។'));
@@ -590,6 +653,7 @@ export default function AdminDashboard() {
         await Promise.all(uploadPromises);
         alert(lang === 'kh' ? `បាននាំចូលផលិតផល ${uploadPromises.length} ដោយជោគជ័យ!` : `Successfully imported ${uploadPromises.length} products!`);
         await fetchData();
+        await logActivity('Imported CSV Products', `${uploadPromises.length} products`, 'Imported products from CSV upload');
       } catch (error) {
         console.error('CSV Import Error:', error);
         alert(t('Failed to parse CSV. Ensure it is formatted correctly.', 'បរាជ័យក្នុងការអាន CSV។ សូមប្រាកដថាមានទម្រង់ត្រឹមត្រូវ។'));
@@ -637,7 +701,14 @@ export default function AdminDashboard() {
       if (editingId) {
         await updateDoc(doc(db, 'products', editingId), productData);
         alert(t('Product Updated!', 'បានធ្វើបច្ចុប្បន្នភាពផលិតផល!'));
-        await logActivity('Updated Product', productName);
+        
+        // Log with detailed change info
+        const priceInfo = hidePrice ? 'Hidden' : `$${formattedVariants[0]?.price || 0}`;
+        await logActivity(
+          'Updated Product', 
+          productName,
+          `Name: ${productName}, Category: ${finalCategory}, Price: ${priceInfo}, Status: ${status}`
+        );
       } else {
         await addDoc(collection(db, 'products'), {
           ...productData,
@@ -684,12 +755,18 @@ export default function AdminDashboard() {
     if (window.confirm(t('Are you sure you want to delete this product?', 'តើអ្នកប្រាកដជាចង់លុបផលិតផលនេះទេ?'))) {
       const productToDelete = products.find((product) => product.id === id);
       const targetName = productToDelete?.name || id;
+      const price = productToDelete?.price ? `$${productToDelete.price}` : 'No price';
+      
       await deleteDoc(doc(db, 'products', id));
-      await logActivity('Deleted Product', targetName);
+      await logActivity(
+        'Deleted Product', 
+        targetName,
+        `ID: ${id}, Price: ${price}, Category: ${productToDelete?.category || 'None'}`
+      );
       await fetchData();
       setSelectedProductIds(prev => { const n = new Set(prev); n.delete(id); return n; });
     }
-  }, [t, fetchData, products]);
+  }, [t, fetchData, products, logActivity]);
 
   // Bulk Actions
   const toggleSelection = useCallback((id: string) => {
@@ -719,6 +796,8 @@ export default function AdminDashboard() {
       });
       await batch.commit();
       await fetchData();
+      const actionTarget = `${selectedProductIds.size} products`;
+      await logActivity('Bulk Status Change', actionTarget, `Set status to ${newStatus}`);
       setSelectedProductIds(new Set());
     } catch (error) {
       console.error('Bulk update error', error);
@@ -737,6 +816,7 @@ export default function AdminDashboard() {
       });
       await batch.commit();
       await fetchData();
+      await logActivity('Bulk Category Change', `${selectedProductIds.size} products`, `Set category to ${newCategory}`);
       setSelectedProductIds(new Set());
     } catch (error) {
       console.error('Bulk category update error', error);
@@ -755,6 +835,7 @@ export default function AdminDashboard() {
         });
         await batch.commit();
         await fetchData();
+        await logActivity('Bulk Delete', `${selectedProductIds.size} products`, 'Removed selected products');
         setSelectedProductIds(new Set());
       } catch (error) {
         console.error('Bulk delete error', error);
@@ -764,7 +845,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const persistManualOrder = async (items: any[]) => {
+  const persistManualOrder = async (items: any[], reason?: string) => {
     setIsSavingOrder(true);
     try {
       const batch = writeBatch(db);
@@ -773,6 +854,9 @@ export default function AdminDashboard() {
       });
       await batch.commit();
       setProducts(items.map((item, index) => ({ ...item, manualOrder: index })));
+      if (reason) {
+        await logActivity('Reordered Products', `${items.length} products`, reason);
+      }
     } catch (error) {
       console.error('Error saving manual order', error);
       alert(t('Failed to save product order.', 'បរាជ័យក្នុងការរក្សាទុកលំដាប់ផលិតផល។'));
@@ -790,8 +874,8 @@ export default function AdminDashboard() {
     const [item] = current.splice(index, 1);
     current.unshift(item);
 
-    await persistManualOrder(current);
-  }, [products]);
+    await persistManualOrder(current, `Bumped ${item.name} to top (moved from position ${index + 1} to 1)`);
+  }, [products, persistManualOrder]);
 
   const handleMoveStep = useCallback(async (index: number, direction: 'up' | 'down') => {
     if (adminSearchQuery || adminCategoryFilter !== 'all') {
@@ -807,7 +891,8 @@ export default function AdminDashboard() {
     [next[index], next[swapIndex]] = [next[swapIndex], next[index]]; 
 
     setProducts(next);
-    await persistManualOrder(next);
+    const movedProduct = next[swapIndex];
+    await persistManualOrder(next, `Moved ${movedProduct.name} ${direction} (from position ${index + 1} to ${swapIndex + 1})`);
   },[products, adminSearchQuery, adminCategoryFilter]);
 
   const handleDragStart = useCallback((
@@ -840,7 +925,7 @@ export default function AdminDashboard() {
     next.splice(toIndex, 0, moved);
 
     setProducts(next);
-    await persistManualOrder(next);
+    await persistManualOrder(next, `Dragged ${moved.name} to position ${toIndex + 1}`);
   },[products, adminSearchQuery, adminCategoryFilter]);
 
   const resetForm = () => {
