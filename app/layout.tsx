@@ -3,6 +3,7 @@ import './globals.css';
 import { Providers } from './providers';
 // NEW: Import Vercel Analytics
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 async function getStoreSettings() {
   try {
@@ -69,6 +70,7 @@ export default function RootLayout({
       <body className="subpixel-antialiased min-h-screen bg-background text-foreground text-black dark:text-white">
         <Providers>{children}</Providers>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
