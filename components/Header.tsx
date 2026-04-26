@@ -1,9 +1,10 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import { Sun, Moon, ShoppingBag } from 'lucide-react';
+import { Sun, Moon, ShoppingBag, ShoppingCart } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useCart } from '@/lib/cartContext';
 
 interface HeaderProps {
   storeName: string;
@@ -24,6 +25,8 @@ export default function Header({
 }: HeaderProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { items } = useCart();
+  const cartCount = items.length;
 
   useEffect(() => setMounted(true), []);
 
@@ -50,6 +53,21 @@ export default function Header({
         </Link>
 
         <div className="flex items-center gap-2 shrink-0">
+          {mounted && (
+            <Link
+              href="/cart"
+              className="relative p-2.5 rounded-xl bg-orange-50 text-orange-400 hover:bg-orange-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white transition-all duration-300 group"
+              aria-label="Shopping Cart"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
+            </Link>
+          )}
+
           {mounted && (
             <button
               onClick={toggleLang}

@@ -3,6 +3,7 @@
 import { ThemeProvider } from 'next-themes';
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { CartProvider } from '@/lib/cartContext';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -24,7 +25,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange={false}
       storageKey="theme"
     >
-      {children}
+      <CartProvider>
+        {children}
+      </CartProvider>
     </ThemeProvider>
   );
 }

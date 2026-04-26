@@ -1,8 +1,9 @@
 'use client';
 
-import { Send, X, ZoomIn } from 'lucide-react';
+import { Send, X, ZoomIn, ShoppingCart } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useCart } from '@/lib/cartContext';
 
 interface Variant {
   name: string;
@@ -39,8 +40,8 @@ const dict = {
     askSeller: 'សួរអ្នកលក់',
     unavailable: 'បច្ចុប្បន្នមិនមានលក់ទេ',
     inquire: 'សាកសួរតាម Telegram',
-    msgHidden: 'សួស្តី ខ្ញុំចាប់អារម្មណ៍លើ *{name}*។ តើមានអីវ៉ាន់ និងតម្លៃប៉ុន្មានដែរ?',
-    msgPrice: 'សួស្តី ខ្ញុំចាប់អារម្មណ៍លើ *{name}* តម្លៃ ${price}។ តើមានអីវ៉ាន់ទេ?',
+    msgHidden: 'សួស្តី ខ្ញុំសុំសួរព័ត៌មានពី *{name}*។ តើអីវ៉ាន់នេះនៅមានស្តុកទេ ហើយតម្លៃប៉ុន្មានដែរ?',
+    msgPrice: 'សួស្តី ខ្ញុំចង់សួរពី *{name}* (តម្លៃ ${price})។ តើនៅមានស្តុកដែរទេ?',
   },
 };
 
@@ -57,6 +58,8 @@ export default function ProductCard({
   const [isClosing, setIsClosing] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [selectedVarIdx, setSelectedVarIdx] = useState(0);
+  const [addedFeedback, setAddedFeedback] = useState(false);
+  const { addToCart } = useCart();
 
   const hasVariants = product.variants && product.variants.length > 0;
   const displayVariants = hasVariants
@@ -133,6 +136,20 @@ export default function ProductCard({
       setIsLightboxOpen(false);
       setIsClosing(false);
     }, 280);
+  };
+
+  const handleAddToCart = () => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      variantName: activeVariant.name,
+      price: activeVariant.price,
+      quantity: 1,
+      hidePrice: product.hidePrice || false,
+    });
+    
+    setAddedFeedback(true);
+    setTimeout(() => setAddedFeedback(false), 2000);
   };
 
   useEffect(() => {
@@ -235,15 +252,29 @@ export default function ProductCard({
               {t.unavailable}
             </button>
           ) : (
-            <a
-              href={telegramUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`${buttonClasses} bg-[#2AABEE] text-white hover:bg-[#229ED9] hover:scale-[1.02] shadow-lg shadow-[#2AABEE]/20 hover:shadow-[#2AABEE]/40 mt-auto`}
-            >
-              <Send className="w-5 h-5 sm:w-4 sm:h-4" />
-              {t.inquire}
-            </a>
+            <div className="space-y-2 mt-auto">
+              <a
+                href={telegramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${buttonClasses} bg-[#2AABEE] text-white hover:bg-[#229ED9] hover:scale-[1.02] shadow-lg shadow-[#2AABEE]/20 hover:shadow-[#2AABEE]/40`}
+              >
+                <Send className="w-5 h-5 sm:w-4 sm:h-4" />
+                {t.inquire}
+              </a>
+              
+              <button
+                onClick={handleAddToCart}
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 active:scale-95 ${
+                  addedFeedback
+                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:hover:bg-stone-700'
+                }`}
+              >
+                <ShoppingCart className="w-4 h-4" />
+                {addedFeedback ? (lang === 'kh' ? '✓ បានបញ្ចូល!' : '✓ Added!') : (lang === 'kh' ? 'ដាក់ចូលកន្ត្រក' : 'Add to Cart')}
+              </button>
+            </div>
           )}
         </div>
       </div>
