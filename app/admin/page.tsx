@@ -44,7 +44,6 @@ import {
 
 const DEFAULT_CATEGORY = '';
 
-// Extracted ProductRow Component wrapper with React.memo
 const ProductRow = React.memo(function ProductRow({
   product,
   index,
@@ -171,25 +170,26 @@ export default function AdminDashboard() {
   const [storeName, setStoreName] = useState('');
   const [tagline, setTagline] = useState('');
   const [taglineKh, setTaglineKh] = useState('');
-  const[telegramHandle, setTelegramHandle] = useState('');
+  const [telegramHandle, setTelegramHandle] = useState('');
   const [defaultLang, setDefaultLang] = useState('en');
   const [facebookUrl, setFacebookUrl] = useState('');
   const [tiktokUrl, setTiktokUrl] = useState('');
   const [mapsUrl, setMapsUrl] = useState('');
+  const [showDevBanner, setShowDevBanner] = useState(true);
 
   const [logoUrl, setLogoUrl] = useState('');
   const [logoSize, setLogoSize] = useState(48);
   const [logoOffsetY, setLogoOffsetY] = useState(0);
   const [isProcessingLogo, setIsProcessingLogo] = useState(false);
 
-  const[heroImageUrl, setHeroImageUrl] = useState('');
+  const [heroImageUrl, setHeroImageUrl] = useState('');
   const [heroImageSize, setHeroImageSize] = useState(128);
   const [isProcessingHeroImage, setIsProcessingHeroImage] = useState(false);
 
-  const[editingId, setEditingId] = useState<string | null>(null);
-  const[productName, setProductName] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [productName, setProductName] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORY);
-  const[isCustomCategory, setIsCustomCategory] = useState(false);
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [description, setDescription] = useState('');
   const [descriptionKh, setDescriptionKh] = useState('');
   const [variants, setVariants] = useState<{ name: string; price: string }[]>([
@@ -197,30 +197,27 @@ export default function AdminDashboard() {
   ]);
   const [originalSettings, setOriginalSettings] = useState<any>(null);
   const [hidePrice, setHidePrice] = useState(false);
-  const[imageUrl, setImageUrl] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [status, setStatus] = useState('in_stock');
   const [isProcessingImage, setIsProcessingImage] = useState(false);
-  const[isUploadingCsv, setIsUploadingCsv] = useState(false);
+  const [isUploadingCsv, setIsUploadingCsv] = useState(false);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   const [products, setProducts] = useState<any[]>([]);
-  const[globalCategories, setGlobalCategories] = useState<string[]>([]);
+  const [globalCategories, setGlobalCategories] = useState<string[]>([]);
   
-  // New State for Bulk Actions & Filters
   const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set());
-  const[adminSearchQuery, setAdminSearchQuery] = useState('');
+  const [adminSearchQuery, setAdminSearchQuery] = useState('');
   const [adminCategoryFilter, setAdminCategoryFilter] = useState('all');
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
 
-  const t = (en: string, kh: string) => (lang === 'kh' ? kh : en);
+  // FIXED: Wrapped 't' function in useCallback so it stops destroying table rendering performance 
+  const t = useCallback((en: string, kh: string) => (lang === 'kh' ? kh : en), [lang]);
 
-  // NEW: Activity Logger - IMPROVED
   const logActivity = useCallback(async (action: string, targetName: string, details?: string) => {
     try {
       const currentUser = user || auth.currentUser;
       const adminIdentity = currentUser?.displayName || currentUser?.email || 'Unknown Admin';
-      
-      console.log(`[LOG] Action: ${action}, Target: ${targetName}, Admin: ${adminIdentity}`);
       
       const logEntry = {
         admin: adminIdentity,
@@ -231,11 +228,9 @@ export default function AdminDashboard() {
         createdAt: new Date().toISOString(),
       };
       
-      const docRef = await addDoc(collection(db, 'activityLogs'), logEntry);
-      console.log(`[LOG] Activity logged successfully with ID: ${docRef.id}`);
+      await addDoc(collection(db, 'activityLogs'), logEntry);
     } catch (error) {
       console.error('[LOG ERROR] Failed to log activity:', error);
-      console.error('[LOG ERROR] Details:', { action, targetName, details });
     }
   }, [user]);
 
@@ -256,6 +251,7 @@ export default function AdminDashboard() {
       'logoOffsetY',
       'heroImageUrl',
       'heroImageSize',
+      'showDevBanner', 
     ];
     keys.forEach((key) => {
       if ((oldSettings[key] ?? '') !== (newSettings[key] ?? '')) {
@@ -299,6 +295,7 @@ export default function AdminDashboard() {
         setFacebookUrl(data.facebookUrl || '');
         setTiktokUrl(data.tiktokUrl || '');
         setMapsUrl(data.mapsUrl || '');
+        setShowDevBanner(data.showDevBanner ?? true); 
         setGlobalCategories(data.categories || []);
         setOriginalSettings({
           storeName: data.storeName || '',
@@ -314,6 +311,7 @@ export default function AdminDashboard() {
           logoOffsetY: data.logoOffsetY || 0,
           heroImageUrl: data.heroImageUrl || '',
           heroImageSize: data.heroImageSize || 128,
+          showDevBanner: data.showDevBanner ?? true,
         });
       }
     });
@@ -328,7 +326,7 @@ export default function AdminDashboard() {
     }));
 
     setProducts(sortProducts(productsData));
-  },[]);
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -355,17 +353,16 @@ export default function AdminDashboard() {
       unsubscribe();
       window.removeEventListener('pageshow', onPageShow);
     };
-  },[fetchData]);
+  }, [fetchData]);
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set([
       ...globalCategories,
       ...products.map((p) => p.category)
-    ].filter((c) => c && c.trim() !== '')); // This removes the blanks
+    ].filter((c) => c && c.trim() !== ''));
     return Array.from(cats);
   }, [products, globalCategories]);
 
-  // Admin list filters
   const filteredAdminProducts = useMemo(() => {
     return products.filter((product) => {
       const matchesSearch = product.name?.toLowerCase().includes(adminSearchQuery.toLowerCase());
@@ -410,6 +407,7 @@ export default function AdminDashboard() {
         logoOffsetY,
         heroImageUrl,
         heroImageSize,
+        showDevBanner, 
       };
 
       await setDoc(
@@ -438,7 +436,6 @@ export default function AdminDashboard() {
         });
         setGlobalCategories(prev => prev.filter(c => c !== catToDelete));
 
-        // Move all products using this category to empty string ("")
         const productsToUpdate = products.filter(p => p.category === catToDelete);
         if (productsToUpdate.length > 0) {
           const batch = writeBatch(db);
@@ -463,7 +460,6 @@ export default function AdminDashboard() {
     const trimmedName = newName.trim();
 
     try {
-      // 1. Update global settings (Firestore requires 2 steps for array replace)
       await updateDoc(doc(db, 'settings', 'global'), {
         categories: arrayRemove(oldName)
       });
@@ -477,7 +473,6 @@ export default function AdminDashboard() {
         return updated;
       });
 
-      // 2. Bulk update all products holding the old category
       const productsToUpdate = products.filter(p => p.category === oldName);
       if (productsToUpdate.length > 0) {
         const batch = writeBatch(db);
@@ -702,7 +697,6 @@ export default function AdminDashboard() {
         await updateDoc(doc(db, 'products', editingId), productData);
         alert(t('Product Updated!', 'បានធ្វើបច្ចុប្បន្នភាពផលិតផល!'));
         
-        // Log with detailed change info
         const priceInfo = hidePrice ? 'Hidden' : `$${formattedVariants[0]?.price || 0}`;
         await logActivity(
           'Updated Product', 
@@ -768,7 +762,6 @@ export default function AdminDashboard() {
     }
   }, [t, fetchData, products, logActivity]);
 
-  // Bulk Actions
   const toggleSelection = useCallback((id: string) => {
     setSelectedProductIds(prev => {
       const next = new Set(prev);
@@ -845,7 +838,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const persistManualOrder = async (items: any[], reason?: string) => {
+  // FIXED: Wrapped persist in useCallback
+  const persistManualOrder = useCallback(async (items: any[], reason?: string) => {
     setIsSavingOrder(true);
     try {
       const batch = writeBatch(db);
@@ -864,7 +858,7 @@ export default function AdminDashboard() {
     } finally {
       setIsSavingOrder(false);
     }
-  };
+  }, [logActivity, t, fetchData]);
 
   const handleBumpToTop = useCallback(async (id: string) => {
     const current = [...products];
@@ -893,7 +887,7 @@ export default function AdminDashboard() {
     setProducts(next);
     const movedProduct = next[swapIndex];
     await persistManualOrder(next, `Moved ${movedProduct.name} ${direction} (from position ${index + 1} to ${swapIndex + 1})`);
-  },[products, adminSearchQuery, adminCategoryFilter]);
+  },[products, adminSearchQuery, adminCategoryFilter, persistManualOrder]);
 
   const handleDragStart = useCallback((
     e: React.DragEvent<HTMLDivElement | HTMLTableRowElement>,
@@ -926,7 +920,7 @@ export default function AdminDashboard() {
 
     setProducts(next);
     await persistManualOrder(next, `Dragged ${moved.name} to position ${toIndex + 1}`);
-  },[products, adminSearchQuery, adminCategoryFilter]);
+  },[products, adminSearchQuery, adminCategoryFilter, persistManualOrder]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -955,14 +949,13 @@ export default function AdminDashboard() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-50 dark:bg-stone-950 p-4 sm:p-6 relative">
-        {/* NEW: Back to Store button on Login Screen */}
         <div className="absolute top-4 left-4 sm:top-6 sm:left-6">
           <Link 
             href="/" 
             className="flex items-center gap-2 p-2.5 rounded-xl text-stone-500 hover:bg-stone-200 dark:text-stone-400 dark:hover:bg-stone-800 transition-all font-bold text-sm"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">{t('Back to Store', 'ត្រឡប់ទៅហាង')}</span>
+            <span className="hidden sm:inline">{t('Back to Store', 'ត្រឡប់ទៅកាន់ហាងវិញ')}</span>
           </Link>
         </div>
 
@@ -1025,7 +1018,6 @@ export default function AdminDashboard() {
             <div className="flex-grow border-t border-stone-200 dark:border-stone-800"></div>
           </div>
 
-          {/* NEW: Google Sign-in Button */}
           <button
             type="button"
             onClick={handleGoogleLogin}
@@ -1047,7 +1039,6 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-stone-50 dark:bg-stone-950 p-4 sm:p-6 md:p-10 text-stone-800 dark:text-stone-100 font-sans transition-colors duration-300 selection:bg-orange-200 selection:text-orange-900 pb-32">
       <div className="max-w-7xl mx-auto space-y-8 relative">
-        {/* Header & Global Actions */}
         <div className="flex flex-col gap-4 bg-white dark:bg-stone-900 p-4 sm:p-6 rounded-3xl border border-orange-50 dark:border-stone-800 shadow-sm animate-fade-up">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="min-w-0">
@@ -1089,7 +1080,6 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              {/* NEW: Back to Store Button in Admin Header */}
               <Link
                 href="/"
                 className="flex items-center gap-2 px-4 sm:px-5 py-3 bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300 rounded-xl font-bold hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors w-full sm:flex-1 md:flex-none justify-center"
@@ -1118,7 +1108,6 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           
-          {/* Settings Section */}
           <div className="bg-white dark:bg-stone-900 p-5 sm:p-8 rounded-3xl shadow-sm border border-orange-50 dark:border-stone-800 xl:col-span-1 h-fit animate-fade-up">
             <div 
               className="flex items-center justify-between mb-8 cursor-pointer xl:cursor-default"
@@ -1139,6 +1128,20 @@ export default function AdminDashboard() {
 
             <div className={`flex flex-col gap-6 ${showSettings ? 'flex' : 'hidden xl:flex'}`}>
               <form onSubmit={handleSaveSettings} className="flex flex-col gap-6">
+                
+                <label className="flex items-center gap-3 p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={showDevBanner} 
+                    onChange={(e) => setShowDevBanner(e.target.checked)} 
+                    className="w-5 h-5 accent-orange-500 rounded border-stone-300 text-orange-500 focus:ring-orange-500 flex-shrink-0" 
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-stone-800 dark:text-white">{t('Show Development Banner', 'បង្ហាញបដាកំពុងអភិវឌ្ឍន៍')}</span>
+                    <span className="text-xs text-stone-500">{t('Display a small notice that the store is still adding products.', 'បង្ហាញសារតូចមួយថាហាងកំពុងបញ្ចូលផលិតផល')}</span>
+                  </div>
+                </label>
+
                 <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 flex flex-col gap-4">
                   <div className="flex justify-between items-center">
                     <label className="text-xs font-bold text-stone-400 uppercase">
@@ -1272,7 +1275,6 @@ export default function AdminDashboard() {
                 </button>
               </form>
 
-              {/* Manage Categories Section */}
               <div className="pt-6 mt-2 border-t border-stone-200 dark:border-stone-800">
                 <h3 className="text-sm font-bold text-stone-800 dark:text-white mb-4 uppercase">
                   {t('Manage Categories', 'គ្រប់គ្រងប្រភេទ')}
@@ -1305,7 +1307,6 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Add/Edit Product Section */}
           <div className="bg-white dark:bg-stone-900 p-5 sm:p-8 rounded-3xl shadow-sm border border-orange-50 dark:border-stone-800 xl:col-span-2 animate-fade-up">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
               <div className="flex items-center gap-3">
@@ -1448,7 +1449,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Inventory Section */}
         <div className="bg-white dark:bg-stone-900 rounded-3xl shadow-sm border border-orange-50 dark:border-stone-800 overflow-hidden animate-fade-up mt-8">
           <div className="p-4 sm:p-6 border-b border-orange-50 dark:border-stone-800 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-stone-50/50 dark:bg-stone-950/50">
             <div>
@@ -1456,7 +1456,7 @@ export default function AdminDashboard() {
                 {t('Inventory Management', 'ការគ្រប់គ្រងស្តុក')}
               </h2>
               <p className="text-xs sm:text-sm text-stone-500 mt-1">
-                {t('Search, filter, select, or manually reorder your items.', 'ស្វែងរក ត្រង ជ្រើសរើស ឬរៀបចំទំនិញឡើងវិញ។')}
+                {t('Search, filter, select, or manually reorder your items.', 'ស្វែងរក តម្រង ជ្រើសរើស ឬរៀបចំទំនិញឡើងវិញ។')}
               </p>
             </div>
 
@@ -1496,7 +1496,6 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Sticky Action Bar at Top for Bulk Selection - NOW ACCESSIBLE */}
           {selectedProductIds.size > 0 && (
             <div className="sticky top-0 left-0 right-0 z-45 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-2xl m-4 p-4 shadow-2xl flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6 animate-slide-in-up border border-orange-400">
               <div className="flex items-center gap-3">
@@ -1545,7 +1544,6 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Mobile Product List */}
           <div className="block lg:hidden p-4 space-y-4">
             {filteredAdminProducts.length === 0 ? (
               <div className="px-4 py-10 text-center text-stone-400 font-medium">
@@ -1628,7 +1626,6 @@ export default function AdminDashboard() {
             )}
           </div>
 
-          {/* Desktop Table View */}
           <div className="hidden lg:block overflow-x-auto pb-6">
             <table className="w-full text-left border-collapse">
               <thead className="bg-stone-50 dark:bg-stone-950 text-stone-400 text-xs uppercase tracking-wider">

@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
-import { Search, FilterX, Loader2, MapPin } from 'lucide-react';
+import { Search, FilterX, Loader2, MapPin, Info } from 'lucide-react';
 import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
 
@@ -34,6 +34,8 @@ export default function Storefront() {
     }
     return 'en';
   });
+  
+  // FIXED: Explicitly added showDevBanner to initial state
   const [settings, setSettings] = useState({
     storeName: 'KIM SAN SHOP CATALOG',
     tagline: '',
@@ -48,16 +50,17 @@ export default function Storefront() {
     facebookUrl: '',
     tiktokUrl: '',
     mapsUrl: '',
+    showDevBanner: true, 
   });
 
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const[stockFilter, setStockFilter] = useState('all');
+  const [stockFilter, setStockFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
   const [showSearchBar, setShowSearchBar] = useState(true);
-  const[compactSearchBar, setCompactSearchBar] = useState(false);
+  const [compactSearchBar, setCompactSearchBar] = useState(false);
   const [displayLimit, setDisplayLimit] = useState(PRODUCTS_PER_PAGE);
 
   const lastScrollY = useRef(0);
@@ -68,7 +71,6 @@ export default function Storefront() {
     const newLang = lang === 'en' ? 'kh' : 'en';
     setLang(newLang);
     localStorage.setItem('siteLang', newLang);
-    // Dispatch custom event for language change
     window.dispatchEvent(new CustomEvent('languageChange', { detail: { lang: newLang } }));
   };
 
@@ -92,14 +94,19 @@ export default function Storefront() {
 
   useEffect(() => {
     setMounted(true);
-  },[]);
+  }, []);
 
   const fetchStorefrontData = useCallback(async () => {
     try {
       const settingsDoc = await getDoc(doc(db, 'settings', 'global'));
       if (settingsDoc.exists()) {
         const data = settingsDoc.data() as any;
-        setSettings((prev) => ({ ...prev, ...data }));
+        setSettings((prev) => ({ 
+          ...prev, 
+          ...data,
+          // FIXED: Strictly cast to boolean to prevent type issues keeping it visible
+          showDevBanner: data.showDevBanner !== undefined ? Boolean(data.showDevBanner) : true 
+        }));
         if (!localStorage.getItem('siteLang') && data.defaultLang) {
           setLang(data.defaultLang);
         }
@@ -113,16 +120,15 @@ export default function Storefront() {
     } finally {
       setLoading(false);
     }
-  },[]);
+  }, []);
 
   useEffect(() => {
     fetchStorefrontData();
   }, [fetchStorefrontData]);
 
-  // Reset limit when filters change
   useEffect(() => {
     setDisplayLimit(PRODUCTS_PER_PAGE);
-  },[searchQuery, categoryFilter, stockFilter]);
+  }, [searchQuery, categoryFilter, stockFilter]);
 
   useEffect(() => {
     let ticking = false;
@@ -132,10 +138,9 @@ export default function Storefront() {
           const currentY = window.scrollY;
           setCompactSearchBar(currentY > 100);
 
-          // Ignore negative scroll (bounce effect on mobile)
           if (currentY <= 0) {
             setShowSearchBar(true);
-          } else if (currentY > lastScrollY.current + 15) { // Increased threshold slightly for less twitching
+          } else if (currentY > lastScrollY.current + 15) {
             setShowSearchBar(false);
           } else if (currentY < lastScrollY.current - 15) {
             setShowSearchBar(true);
@@ -150,7 +155,7 @@ export default function Storefront() {
 
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
-  },[]);
+  }, []);
 
   useEffect(() => {
     const handlePageShow = (event: Event) => {
@@ -164,12 +169,12 @@ export default function Storefront() {
     return () => {
       window.removeEventListener('pageshow', handlePageShow);
     };
-  },[fetchStorefrontData]);
+  }, [fetchStorefrontData]);
 
   const uniqueCategories = useMemo(() => {
     const cats = products
       .map((p) => p.category)
-      .filter((c) => c && c.trim() !== ''); // This removes the blanks
+      .filter((c) => c && c.trim() !== '');
     return Array.from(new Set(cats));
   }, [products]);
 
@@ -188,7 +193,7 @@ export default function Storefront() {
 
       return matchesSearch && matchesStock && matchesCategory;
     });
-  },[products, searchQuery, stockFilter, categoryFilter]);
+  }, [products, searchQuery, stockFilter, categoryFilter]);
 
   const displayedProducts = filteredProducts.slice(0, displayLimit);
   const hasMore = displayLimit < filteredProducts.length;
@@ -235,6 +240,21 @@ export default function Storefront() {
       />
 
       <main className="container mx-auto px-4 sm:px-6 py-8 sm:py-12 relative">
+        
+        {settings.showDevBanner && (
+          <div className="max-w-2xl mx-auto mb-10 flex justify-center animate-fade-up">
+            <div className="inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full bg-stone-200/50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 shadow-sm backdrop-blur-sm">
+              <Info className="w-4 h-4 shrink-0 text-stone-400 dark:text-stone-500" />
+              <p className="text-xs sm:text-sm font-medium">
+                {t(
+                  "We're currently uploading our inventory. Feel free to browse and message us!",
+                  "គេហទំព័រកំពុងរៀបចំបញ្ចូលផលិតផលបន្ថែម។ លោកអ្នកអាចមើលកម្សាន្ត និងសួរព័ត៌មានបានធម្មតា។"
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-14 flex flex-col items-center animate-fade-up">
           {settings.heroImageUrl && (
             <img
@@ -280,7 +300,6 @@ export default function Storefront() {
         <div
           className={[
             'sticky z-40 mb-8 sm:mb-10 transition-all duration-500 ease-in-out',
-            // Position shifted lower on mobile to prevent hiding beneath the sticky header (min-h-20)
             'top-[88px] md:top-24',
             showSearchBar ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none'
           ].join(' ')}
@@ -397,7 +416,7 @@ export default function Storefront() {
                   onClick={() => setDisplayLimit(prev => prev + PRODUCTS_PER_PAGE)}
                   className="inline-flex items-center gap-2 px-8 py-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 hover:border-orange-300 dark:hover:border-orange-500/50 rounded-2xl font-bold text-stone-800 dark:text-stone-200 hover:text-orange-500 transition-all duration-300 shadow-sm active:scale-95"
                 >
-                  <Loader2 className="w-5 h-5 animate-spin hidden" /> {/* Useful if you want to add loading states later */}
+                  <Loader2 className="w-5 h-5 animate-spin hidden" /> 
                   {t('Load More Products', 'ផ្ទុកផលិតផលបន្ថែម')}
                 </button>
               </div>
