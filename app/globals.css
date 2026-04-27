@@ -33,6 +33,21 @@ html {
   transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
 }
 
+/* Allow smooth background animation when next-themes disables transitions */
+html.transition-none {
+  transition: background-color 150ms ease-in-out, color 150ms ease-in-out !important;
+}
+
+html.transition-none body {
+  transition: background-color 150ms ease-in-out, color 150ms ease-in-out !important;
+}
+
+/* Keep theme toggle button animation working during theme switch */
+html.transition-none button[aria-label="Toggle Dark Mode"],
+html.transition-none button[aria-label="Toggle Language"] {
+  transition: all 300ms ease-in-out !important;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
@@ -41,7 +56,7 @@ body {
   -moz-osx-font-smoothing: auto;
   text-rendering: optimizeLegibility;
   -webkit-text-size-adjust: 100%;
-  transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
+  transition: background-color 150ms ease-in-out, color 150ms ease-in-out !important;
 }
 
 @keyframes fade-up {

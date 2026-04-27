@@ -119,7 +119,7 @@ export default function ProductCard({
 
   const isOutOfStock = product.status === 'out_of_stock';
   const buttonClasses =
-    'w-full flex items-center justify-center gap-2 px-4 py-4 sm:py-3.5 rounded-2xl font-bold text-sm sm:text-base transition-all duration-300 active:scale-[0.98]';
+    'w-full flex items-center justify-center gap-2 px-4 py-4 sm:py-3.5 rounded-2xl font-bold text-sm sm:text-base transition-transform duration-300 active:scale-[0.98]';
 
   const openLightbox = () => {
     if (!product.imageUrl) return;
@@ -176,7 +176,7 @@ export default function ProductCard({
 
   return (
     <>
-      <div className="group flex flex-col bg-white dark:bg-stone-900 rounded-3xl overflow-hidden border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-2xl hover:shadow-stone-200 dark:hover:shadow-black/50 hover:-translate-y-1 transition-all duration-500 relative">
+      <div className="group flex flex-col bg-white dark:bg-stone-900 rounded-3xl overflow-hidden border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-2xl hover:shadow-stone-200 dark:hover:shadow-black/50 hover:-translate-y-1 transition-transform duration-500 relative">
         <div
           onClick={openLightbox}
           className={`relative aspect-square w-full overflow-hidden bg-stone-100 dark:bg-stone-950 flex items-center justify-center ${product.imageUrl ? 'cursor-zoom-in' : ''}`}
@@ -188,7 +188,7 @@ export default function ProductCard({
               </div>
 
               <div
-                className="absolute inset-0 bg-cover bg-center opacity-40 dark:opacity-30 blur-2xl scale-110 saturate-150 transition-all duration-500 group-hover:scale-125"
+                className="absolute inset-0 bg-cover bg-center opacity-40 dark:opacity-30 blur-2xl scale-110 saturate-150 transition-transform duration-500 group-hover:scale-125"
                 style={{ backgroundImage: `url(${product.imageUrl})` }}
               />
 
@@ -231,7 +231,7 @@ export default function ProductCard({
                 <button
                   key={idx}
                   onClick={() => setSelectedVarIdx(idx)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all duration-300 hover:scale-[1.05] active:scale-95 ${
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-transform duration-300 hover:scale-[1.05] active:scale-95 ${
                     selectedVarIdx === idx
                       ? 'bg-orange-400 text-white border-orange-400 shadow-md shadow-orange-400/20'
                       : 'bg-stone-50 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700 hover:border-orange-300 dark:hover:border-orange-500/50'
@@ -265,7 +265,7 @@ export default function ProductCard({
               
               <button
                 onClick={handleAddToCart}
-                className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 active:scale-95 ${
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition-transform duration-300 active:scale-95 ${
                   addedFeedback
                     ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
                     : 'bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:hover:bg-stone-700'

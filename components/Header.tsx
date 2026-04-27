@@ -42,7 +42,7 @@ export default function Header({
               className="object-contain w-auto max-w-[56px] sm:max-w-none group-hover:scale-105 transition-transform duration-300 rounded-lg shrink-0"
             />
           ) : (
-            <div className="bg-orange-50 dark:bg-stone-800 p-2.5 rounded-2xl group-hover:bg-orange-100 dark:group-hover:bg-stone-700 transition-all duration-300 shrink-0">
+            <div className="bg-orange-50 dark:bg-stone-800 p-2.5 rounded-2xl group-hover:bg-orange-100 dark:group-hover:bg-stone-700 transition-colors duration-300 shrink-0">
               <ShoppingBag className="w-5 h-5 text-orange-400 group-hover:scale-110 transition-transform" />
             </div>
           )}
@@ -56,7 +56,7 @@ export default function Header({
           {mounted && (
             <button
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2.5 rounded-xl bg-orange-50 text-orange-400 hover:bg-orange-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white transition-all duration-300 group"
+              className="relative p-2.5 rounded-xl bg-orange-50 text-orange-400 hover:bg-orange-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white transition-colors duration-300 group"
               aria-label="Shopping Cart"
             >
               <ShoppingCart className="w-5 h-5" />
@@ -71,7 +71,7 @@ export default function Header({
           {mounted && (
             <button
               onClick={toggleLang}
-              className="relative overflow-hidden w-10 h-10 rounded-xl bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 transition-all duration-300 flex items-center justify-center font-extrabold text-sm"
+              className="relative overflow-hidden w-10 h-10 rounded-xl bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 transition-colors duration-300 flex items-center justify-center font-extrabold text-sm"
               aria-label="Toggle Language"
             >
               <span className={`absolute transition-all duration-500 ${lang === 'en' ? 'translate-y-0 opacity-100 scale-100' : '-translate-y-8 opacity-0 scale-75'}`}>
@@ -83,15 +83,18 @@ export default function Header({
             </button>
           )}
 
-          {mounted && (
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2.5 rounded-xl bg-orange-50 text-orange-400 hover:bg-orange-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white transition-all duration-300"
-              aria-label="Toggle Dark Mode"
-            >
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-          )}
+{mounted && (
+             <button
+               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+               className="p-2.5 rounded-xl bg-orange-50 text-orange-400 hover:bg-orange-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white transition-colors duration-300 relative"
+               aria-label="Toggle Dark Mode"
+             >
+               <div className="w-5 h-5 relative">
+                 <Sun className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${theme === 'dark' ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'}`} />
+                 <Moon className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${theme === 'dark' ? 'opacity-0 rotate-90' : 'opacity-100 rotate-0'}`} />
+               </div>
+             </button>
+           )}
         </div>
       </div>
     </header>

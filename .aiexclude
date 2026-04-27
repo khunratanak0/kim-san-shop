@@ -1,0 +1,15 @@
+# Block Node packages
+node_modules/
+
+# Block Next.js build outputs
+.next/
+out/
+build/
+
+# Block environment variables and sensitive stuff
+.env
+.env.*
+
+# Block logs and miscellaneous files
+*.log
+.DS_Store

@@ -172,9 +172,10 @@ export default function AdminDashboard() {
   const [taglineKh, setTaglineKh] = useState('');
   const [telegramHandle, setTelegramHandle] = useState('');
   const [defaultLang, setDefaultLang] = useState('en');
-  const [facebookUrl, setFacebookUrl] = useState('');
-  const [tiktokUrl, setTiktokUrl] = useState('');
-  const [mapsUrl, setMapsUrl] = useState('');
+const [facebookUrl, setFacebookUrl] = useState('');
+   const [tiktokUrl, setTiktokUrl] = useState('');
+   const [telegramUrl, setTelegramUrl] = useState('');
+   const [mapsUrl, setMapsUrl] = useState('');
   const [showDevBanner, setShowDevBanner] = useState(true);
 
   const [logoUrl, setLogoUrl] = useState('');
@@ -292,20 +293,22 @@ export default function AdminDashboard() {
         setLogoOffsetY(data.logoOffsetY || 0);
         setHeroImageUrl(data.heroImageUrl || '');
         setHeroImageSize(data.heroImageSize || 128);
-        setFacebookUrl(data.facebookUrl || '');
-        setTiktokUrl(data.tiktokUrl || '');
-        setMapsUrl(data.mapsUrl || '');
+setFacebookUrl(data.facebookUrl || '');
+         setTiktokUrl(data.tiktokUrl || '');
+         setTelegramUrl(data.telegramUrl || '');
+         setMapsUrl(data.mapsUrl || '');
         setShowDevBanner(data.showDevBanner ?? true); 
         setGlobalCategories(data.categories || []);
-        setOriginalSettings({
-          storeName: data.storeName || '',
-          tagline: data.tagline || '',
-          taglineKh: data.taglineKh || '',
-          telegramHandle: data.telegramHandle || '',
-          defaultLang: data.defaultLang || 'en',
-          facebookUrl: data.facebookUrl || '',
-          tiktokUrl: data.tiktokUrl || '',
-          mapsUrl: data.mapsUrl || '',
+setOriginalSettings({
+           storeName: data.storeName || '',
+           tagline: data.tagline || '',
+           taglineKh: data.taglineKh || '',
+           telegramHandle: data.telegramHandle || '',
+           defaultLang: data.defaultLang || 'en',
+           facebookUrl: data.facebookUrl || '',
+           tiktokUrl: data.tiktokUrl || '',
+           telegramUrl: data.telegramUrl || '',
+           mapsUrl: data.mapsUrl || '',
           logoUrl: data.logoUrl || '',
           logoSize: data.logoSize || 48,
           logoOffsetY: data.logoOffsetY || 0,
@@ -393,15 +396,16 @@ export default function AdminDashboard() {
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const settingsPayload = {
-        storeName,
-        tagline,
-        taglineKh,
-        telegramHandle,
-        defaultLang,
-        facebookUrl,
-        tiktokUrl,
-        mapsUrl,
+const settingsPayload = {
+         storeName,
+         tagline,
+         taglineKh,
+         telegramHandle,
+         defaultLang,
+         facebookUrl,
+         tiktokUrl,
+         telegramUrl,
+         mapsUrl,
         logoUrl,
         logoSize,
         logoOffsetY,
@@ -975,15 +979,15 @@ export default function AdminDashboard() {
               </button>
             )}
 
-            {mounted && (
-              <button
-                type="button"
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className="p-2 rounded-xl text-stone-400 hover:bg-orange-50 hover:text-orange-400 dark:hover:bg-stone-800 dark:hover:text-stone-200 transition-all"
-              >
-                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-            )}
+{mounted && (
+               <button
+                 type="button"
+                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                 className="p-2 rounded-xl text-stone-400 hover:bg-orange-50 hover:text-orange-400 dark:hover:bg-stone-800 dark:hover:text-stone-200 transition-all"
+               >
+                 {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+               </button>
+             )}
           </div>
 
           <h2 className="text-3xl font-extrabold mb-8 text-center text-stone-800 dark:text-white tracking-tight">
@@ -1071,14 +1075,14 @@ export default function AdminDashboard() {
                 </button>
               )}
 
-              {mounted && (
-                <button
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                  className="p-3 bg-orange-50 text-orange-400 dark:bg-stone-800 dark:text-stone-300 rounded-xl hover:bg-orange-100 dark:hover:bg-stone-700 transition-colors shrink-0"
-                >
-                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
-              )}
+{mounted && (
+                 <button
+                   onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                   className="p-3 bg-orange-50 text-orange-400 dark:bg-stone-800 dark:text-stone-300 rounded-xl hover:bg-orange-100 dark:hover:bg-stone-700 transition-colors shrink-0"
+                 >
+                   {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                 </button>
+               )}
 
               <Link
                 href="/"
@@ -1263,12 +1267,13 @@ export default function AdminDashboard() {
                   </select>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 flex flex-col gap-4 mt-4">
-                  <label className="text-xs font-bold text-stone-400 uppercase">{t('Social & Map Links', 'តំណភ្ជាប់សង្គម')}</label>
-                  <input value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} placeholder="Facebook Page URL" className={inputClasses} />
-                  <input value={tiktokUrl} onChange={(e) => setTiktokUrl(e.target.value)} placeholder="TikTok Profile URL" className={inputClasses} />
-                  <input value={mapsUrl} onChange={(e) => setMapsUrl(e.target.value)} placeholder="Google Maps Link" className={inputClasses} />
-                </div>
+<div className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-950 border border-stone-100 dark:border-stone-800 flex flex-col gap-4 mt-4">
+                   <label className="text-xs font-bold text-stone-400 uppercase">{t('Social & Map Links', 'តំណភ្ជាប់សង្គម')}</label>
+                   <input value={facebookUrl} onChange={(e) => setFacebookUrl(e.target.value)} placeholder="Facebook Page URL" className={inputClasses} />
+                   <input value={tiktokUrl} onChange={(e) => setTiktokUrl(e.target.value)} placeholder="TikTok Profile URL" className={inputClasses} />
+                   <input value={telegramUrl} onChange={(e) => setTelegramUrl(e.target.value)} placeholder="Telegram Channel/Group URL" className={inputClasses} />
+                   <input value={mapsUrl} onChange={(e) => setMapsUrl(e.target.value)} placeholder="Google Maps Link" className={inputClasses} />
+                 </div>
 
                 <button type="submit" disabled={isProcessingLogo || isProcessingHeroImage} className="w-full bg-stone-800 text-white dark:bg-stone-100 dark:text-stone-900 py-3.5 rounded-xl font-bold mt-2 hover:opacity-90 transition-opacity active:scale-[0.98]">
                   {t('Save Settings', 'រក្សាទុកការកំណត់')}
