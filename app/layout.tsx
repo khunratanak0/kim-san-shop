@@ -4,6 +4,10 @@ import { Providers } from './providers';
 // NEW: Import Vercel Analytics
 import { Analytics } from '@vercel/analytics/next';
 
+// THIS IS THE FIX: Forces Next.js to treat this layout as dynamic,
+// preventing the DYNAMIC_SERVER_USAGE build error on Vercel.
+export const dynamic = 'force-dynamic';
+
 async function getStoreSettings() {
   try {
     const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
