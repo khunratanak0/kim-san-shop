@@ -76,7 +76,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="subpixel-antialiased min-h-screen bg-background text-foreground text-black dark:text-white">
+      <body className="subpixel-antialiased min-h-screen bg-background text-foreground text-black dark:text-white" suppressHydrationWarning>
         <Providers>{children}</Providers>
         <Analytics />
       </body>

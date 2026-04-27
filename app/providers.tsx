@@ -4,6 +4,7 @@ import { ThemeProvider } from 'next-themes';
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { CartProvider } from '@/lib/cartContext';
+import CartModal from '@/components/CartModal';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -27,6 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     >
       <CartProvider>
         {children}
+        <CartModal />
       </CartProvider>
     </ThemeProvider>
   );

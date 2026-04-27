@@ -68,6 +68,8 @@ export default function Storefront() {
     const newLang = lang === 'en' ? 'kh' : 'en';
     setLang(newLang);
     localStorage.setItem('siteLang', newLang);
+    // Dispatch custom event for language change
+    window.dispatchEvent(new CustomEvent('languageChange', { detail: { lang: newLang } }));
   };
 
   const normalizeProducts = (docs: any[]) => {

@@ -25,7 +25,7 @@ export default function Header({
 }: HeaderProps) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const { items } = useCart();
+  const { items, setIsCartOpen } = useCart();
   const cartCount = items.length;
 
   useEffect(() => setMounted(true), []);
@@ -54,8 +54,8 @@ export default function Header({
 
         <div className="flex items-center gap-2 shrink-0">
           {mounted && (
-            <Link
-              href="/cart"
+            <button
+              onClick={() => setIsCartOpen(true)}
               className="relative p-2.5 rounded-xl bg-orange-50 text-orange-400 hover:bg-orange-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white transition-all duration-300 group"
               aria-label="Shopping Cart"
             >
@@ -65,7 +65,7 @@ export default function Header({
                   {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
-            </Link>
+            </button>
           )}
 
           {mounted && (
