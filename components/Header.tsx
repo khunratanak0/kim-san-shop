@@ -23,7 +23,7 @@ export default function Header({
   lang,
   toggleLang,
 }: HeaderProps) {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { items, setIsCartOpen } = useCart();
   const cartCount = items.length;
@@ -85,13 +85,13 @@ export default function Header({
 
 {mounted && (
              <button
-               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+               onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
                className="p-2.5 rounded-xl bg-orange-50 text-orange-400 hover:bg-orange-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white transition-colors duration-300 relative"
                aria-label="Toggle Dark Mode"
              >
                <div className="w-5 h-5 relative">
-                 <Sun className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${theme === 'dark' ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'}`} />
-                 <Moon className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${theme === 'dark' ? 'opacity-0 rotate-90' : 'opacity-100 rotate-0'}`} />
+                <Sun className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${resolvedTheme === 'dark' ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'}`} />
+                <Moon className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${resolvedTheme === 'dark' ? 'opacity-0 rotate-90' : 'opacity-100 rotate-0'}`} />
                </div>
              </button>
            )}

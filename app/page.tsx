@@ -199,9 +199,11 @@ facebookUrl: '',
   const displayedProducts = filteredProducts.slice(0, displayLimit);
   const hasMore = displayLimit < filteredProducts.length;
 
-  if (loading && mounted) {
-    const loadingText = lang === 'kh' ? 'កំពុងផ្ទុកហាងរបស់អ្នក...' : 'Loading your store...';
-    const loadingSubtext = lang === 'kh' ? 'សូមរង់ចាំខណៈពេលដែលយើងរៀបចំផលិតផលរបស់អ្នក' : 'Please wait while we prepare your products';
+  if (!mounted) return null;
+
+  if (loading) {
+    const loadingText = lang === 'kh' ? 'កំពុងរៀបចំហាង...' : 'Getting your store ready...';
+    const loadingSubtext = lang === 'kh' ? 'សូមរង់ចាំ ផលិតផលល្អៗកំពុងមកដល់' : 'Hang tight, great products are on the way';
 
     return (
       <div className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-300 flex flex-col items-center justify-center">

@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { CartProvider } from '@/lib/cartContext';
 import CartModal from '@/components/CartModal';
+import TelegramProvider from '@/components/TelegramProvider';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -27,8 +28,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       storageKey="theme"
     >
       <CartProvider>
-        {children}
-        <CartModal />
+        <TelegramProvider>
+          {children}
+          <CartModal />
+        </TelegramProvider>
       </CartProvider>
     </ThemeProvider>
   );
