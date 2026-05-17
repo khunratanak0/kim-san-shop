@@ -14,18 +14,13 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://telegram.org https://*.telegram.org",
-              "style-src 'self' 'unsafe-inline' https://telegram.org",
-              "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com wss://*.firebaseio.com https://telegram.org https://*.vercel-analytics.com",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://telegram.org https://*.telegram.org https://*.cloudinary.com",
+              "style-src 'self' 'unsafe-inline' https://telegram.org https://*.cloudinary.com",
+              "img-src 'self' data: https: blob: https://*.cloudinary.com",
+              "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com wss://*.firebaseio.com https://telegram.org https://*.vercel-analytics.com https://api.cloudinary.com https://*.cloudinary.com",
               "frame-ancestors 'self' https://web.telegram.org https://*.web.telegram.org",
-              "frame-src https://telegram.org https://*.telegram.org",
+              "frame-src https://telegram.org https://*.telegram.org https://*.cloudinary.com",
             ].join("; "),
-          },
-          {
-            // Allow embedding in Telegram's iframe
-            key: "X-Frame-Options",
-            value: "ALLOW-FROM https://web.telegram.org",
           },
         ],
       },

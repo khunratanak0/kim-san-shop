@@ -157,10 +157,12 @@ export default function ProductCard({
   }, [product.id]);
 
   useEffect(() => {
+    let originalStyle = '';
+    
+    // If we are opening the lightbox, save the CURRENT scroll state before locking it
     if (isLightboxOpen) {
+      originalStyle = window.getComputedStyle(document.body).overflow;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -170,7 +172,10 @@ export default function ProductCard({
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'auto'; 
+      // When the component cleans up (lightbox closes), put the scroll state back exactly how we found it
+      if (isLightboxOpen) {
+        document.body.style.overflow = originalStyle; 
+      }
     };
   }, [isLightboxOpen]);
 

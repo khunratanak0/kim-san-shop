@@ -132,20 +132,27 @@ facebookUrl: '',
   }, [searchQuery, categoryFilter, stockFilter]);
 
   useEffect(() => {
-    let ticking = false;
+    let ticking = false; 
+
     const onScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const currentY = window.scrollY;
-          setCompactSearchBar(currentY > 100);
+          
+          // React safely bails out if prev and next are identical, preventing useless re-renders
+          setCompactSearchBar(prev => {
+            const next = currentY > 100;
+            return prev === next ? prev : next; 
+          });
 
-          if (currentY <= 0) {
-            setShowSearchBar(true);
-          } else if (currentY > lastScrollY.current + 15) {
-            setShowSearchBar(false);
-          } else if (currentY < lastScrollY.current - 15) {
-            setShowSearchBar(true);
-          }
+          setShowSearchBar(prev => {
+            let next = prev;
+            if (currentY <= 0) next = true;
+            else if (currentY > lastScrollY.current + 15) next = false;
+            else if (currentY < lastScrollY.current - 15) next = true;
+            
+            return prev === next ? prev : next;
+          });
 
           lastScrollY.current = currentY > 0 ? currentY : 0;
           ticking = false;
@@ -154,6 +161,7 @@ facebookUrl: '',
       }
     };
 
+    // passive: true tells the browser we won't call preventDefault, ensuring hardware-accelerated scrolling
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);

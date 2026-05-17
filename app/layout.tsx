@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from './providers';
-// NEW: Import Vercel Analytics
 import { Analytics } from '@vercel/analytics/next';
+import Script from 'next/script';
 
 // THIS IS THE FIX: Forces Next.js to treat this layout as dynamic,
 // preventing the DYNAMIC_SERVER_USAGE build error on Vercel.
@@ -84,6 +84,11 @@ export default function RootLayout({
         {/* Telegram Mini App meta tags */}
         <meta name="telegram-web-app" content="yes" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+        
+        <Script 
+          src="https://telegram.org/js/telegram-web-app.js" 
+          strategy="beforeInteractive" 
+        />
       </head>
       <body className="subpixel-antialiased min-h-screen bg-background text-foreground text-black dark:text-white" suppressHydrationWarning>
         <Providers>{children}</Providers>

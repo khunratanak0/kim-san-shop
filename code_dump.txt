@@ -1,3 +1,92 @@
+---
+./app/admin/logs/page.tsx
+---
+'use client';
+
+import { useEffect, useState } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, query, orderBy, getDocs, limit } from 'firebase/firestore';
+import Link from 'next/link';
+import { ArrowLeft, Clock, ShieldAlert } from 'lucide-react';
+
+export default function ActivityLogs() {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        console.log('[LOGS] Fetching activity logs from Firestore...');
+        const q = query(collection(db, 'activityLogs'), orderBy('timestamp', 'desc'), limit(100));
+        const snapshot = await getDocs(q);
+        console.log(`[LOGS] Retrieved ${snapshot.size} log documents`);
+        
+        const fetchedLogs = snapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('[LOGS] Log entry:', data);
+          return { id: doc.id, ...data };
+        });
+        setLogs(fetchedLogs);
+      } catch (error) {
+        console.error('[LOGS ERROR] Failed to fetch logs:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLogs();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 p-4 sm:p-8 text-stone-800 dark:text-stone-100">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="flex items-center justify-between bg-white dark:bg-stone-900 p-6 rounded-3xl shadow-sm border border-stone-100 dark:border-stone-800">
+          <div className="flex items-center gap-4">
+            <Link href="/admin" className="p-2 bg-stone-100 dark:bg-stone-800 rounded-xl hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div>
+              <h1 className="text-2xl font-extrabold flex items-center gap-2">
+                <ShieldAlert className="w-6 h-6 text-orange-500" />
+                Admin Activity Logs
+              </h1>
+              <p className="text-stone-500 text-sm font-medium">Permanent record of all administrative actions. Cannot be deleted.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-stone-900 rounded-3xl shadow-sm border border-stone-100 dark:border-stone-800 overflow-hidden">
+          {loading ? (
+            <div className="p-10 text-center text-stone-400 font-bold">Loading logs...</div>
+          ) : logs.length === 0 ? (
+            <div className="p-10 text-center text-stone-400 font-bold">No activity recorded yet.</div>
+          ) : (
+            <div className="divide-y divide-stone-100 dark:divide-stone-800/50">
+              {logs.map((log) => (
+                <div key={log.id} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition-colors">
+                  <div>
+                    <p className="font-bold text-stone-800 dark:text-white">
+                      <span className="text-orange-500">{log.admin}</span> {log.action}: <span className="text-stone-500 dark:text-stone-400">{log.target}</span>
+                    </p>
+                    {log.details && (
+                      <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{log.details}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-stone-400 bg-stone-100 dark:bg-stone-800 px-3 py-1.5 rounded-lg w-fit shrink-0">
+                    <Clock className="w-3.5 h-3.5" />
+                    {new Date(log.timestamp).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+---
+./app/admin/page.tsx
+---
 'use client';
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
@@ -1707,3 +1796,2113 @@ const settingsPayload = {
     </div>
   );
 }
+---
+./app/layout.tsx
+---
+import type { Metadata } from 'next';
+import './globals.css';
+import { Providers } from './providers';
+// NEW: Import Vercel Analytics
+import { Analytics } from '@vercel/analytics/next';
+
+// THIS IS THE FIX: Forces Next.js to treat this layout as dynamic,
+// preventing the DYNAMIC_SERVER_USAGE build error on Vercel.
+export const dynamic = 'force-dynamic';
+
+async function getStoreSettings() {
+  try {
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+    if (!projectId) {
+      console.log('No project ID');
+      return null;
+    }
+
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/global`;
+    console.log('Fetching metadata from:', url);
+
+    const res = await fetch(url, {
+      next: { revalidate: 0 },
+    });
+
+    console.log('Firestore response status:', res.status);
+
+    if (!res.ok) {
+      console.log('Firestore fetch failed:', res.status);
+      return null;
+    }
+
+    const data = await res.json();
+    console.log('Firestore data received:', data.fields?.tagline?.stringValue);
+    return data.fields;
+  } catch (error) {
+    console.error('Metadata fetch error:', error);
+    return null;
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getStoreSettings();
+
+  const storeName = settings?.storeName?.stringValue || 'Kim San Shop';
+  const tagline =
+    settings?.tagline?.stringValue ||
+    'Welcome to Kim San Shop - Premium Products';
+  const heroImageUrl = settings?.heroImageUrl?.stringValue || '';
+
+  console.log('Generated metadata with tagline:', tagline);
+
+  return {
+    title: storeName,
+    description: tagline,
+    appleWebApp: {
+      title: 'Kim San',
+    },
+    openGraph: {
+      title: storeName,
+      description: tagline,
+      images: heroImageUrl ? [{ url: heroImageUrl }] : [],
+      type: 'website',
+      url: 'https://www.kimsan285.com',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: storeName,
+      description: tagline,
+      images: heroImageUrl ? [heroImageUrl] : [],
+    },
+  };
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Telegram Mini App meta tags */}
+        <meta name="telegram-web-app" content="yes" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+      </head>
+      <body className="subpixel-antialiased min-h-screen bg-background text-foreground text-black dark:text-white" suppressHydrationWarning>
+        <Providers>{children}</Providers>
+        <Analytics />
+      </body>
+    </html>
+  );
+}---
+./app/cart/page.tsx
+---
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function CartPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Redirect to home since cart is now a modal overlay
+    router.push('/');
+  }, [router]);
+
+  return null;
+}---
+./app/page.tsx
+---
+'use client';
+
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/firestore';
+import { Search, FilterX, Loader2, MapPin, Info } from 'lucide-react';
+import Header from '@/components/Header';
+import ProductCard from '@/components/ProductCard';
+
+const DEFAULT_CATEGORY = '';
+const PRODUCTS_PER_PAGE = 30;
+
+const SkeletonCard = () => (
+  <div className="bg-white dark:bg-stone-900 rounded-3xl h-[430px] animate-pulse flex flex-col border border-stone-100 dark:border-stone-800 shadow-sm overflow-hidden">
+    <div className="w-full aspect-square bg-stone-100 dark:bg-stone-950 mb-4" />
+    <div className="p-5 flex-grow flex flex-col gap-3">
+      <div className="flex justify-between w-full">
+        <div className="w-3/5 h-6 bg-stone-100 dark:bg-stone-800 rounded-lg" />
+        <div className="w-1/4 h-6 bg-stone-100 dark:bg-stone-800 rounded-lg" />
+      </div>
+      <div className="w-1/3 h-5 bg-stone-100 dark:bg-stone-800 rounded-lg mb-2" />
+      <div className="w-full h-4 bg-stone-100 dark:bg-stone-800 rounded-md" />
+      <div className="w-4/5 h-4 bg-stone-100 dark:bg-stone-800 rounded-md" />
+      <div className="mt-auto w-full h-12 bg-stone-100 dark:bg-stone-800 rounded-2xl" />
+    </div>
+  </div>
+);
+
+export default function Storefront() {
+  const [products, setProducts] = useState<any[]>([]);
+  const [lang, setLang] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('siteLang') || 'en';
+    }
+    return 'en';
+  });
+  
+  // FIXED: Explicitly added showDevBanner to initial state
+  const [settings, setSettings] = useState({
+    storeName: 'KIM SAN SHOP CATALOG',
+    tagline: '',
+    taglineKh: '',
+    telegramHandle: 'your_telegram_username',
+    logoUrl: '',
+    logoSize: 48,
+    logoOffsetY: 0,
+    heroImageUrl: '',
+    heroImageSize: 128,
+    defaultLang: 'en',
+facebookUrl: '',
+     tiktokUrl: '',
+     telegramUrl: '',
+     mapsUrl: '',
+    showDevBanner: true, 
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [stockFilter, setStockFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+
+  const [showSearchBar, setShowSearchBar] = useState(true);
+  const [compactSearchBar, setCompactSearchBar] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(PRODUCTS_PER_PAGE);
+
+  const lastScrollY = useRef(0);
+
+  const t = (en: string, kh: string) => (lang === 'kh' ? kh : en);
+
+  const toggleLang = () => {
+    const newLang = lang === 'en' ? 'kh' : 'en';
+    setLang(newLang);
+    localStorage.setItem('siteLang', newLang);
+    window.dispatchEvent(new CustomEvent('languageChange', { detail: { lang: newLang } }));
+  };
+
+  const normalizeProducts = (docs: any[]) => {
+    const mapped = docs.map((item) => ({
+      id: item.id,
+      category: item.data().category || DEFAULT_CATEGORY,
+      manualOrder:
+        typeof item.data().manualOrder === 'number' ? item.data().manualOrder : null,
+      ...item.data(),
+    }));
+
+    return mapped.sort((a, b) => {
+      const aOrder = typeof a.manualOrder === 'number' ? a.manualOrder : Number.MAX_SAFE_INTEGER;
+      const bOrder = typeof b.manualOrder === 'number' ? b.manualOrder : Number.MAX_SAFE_INTEGER;
+
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return (b.createdAt || 0) - (a.createdAt || 0);
+    });
+  };
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const fetchStorefrontData = useCallback(async () => {
+    try {
+      const settingsDoc = await getDoc(doc(db, 'settings', 'global'));
+      if (settingsDoc.exists()) {
+        const data = settingsDoc.data() as any;
+        setSettings((prev) => ({ 
+          ...prev, 
+          ...data,
+          // FIXED: Strictly cast to boolean to prevent type issues keeping it visible
+          showDevBanner: data.showDevBanner !== undefined ? Boolean(data.showDevBanner) : true 
+        }));
+        if (!localStorage.getItem('siteLang') && data.defaultLang) {
+          setLang(data.defaultLang);
+        }
+      }
+
+      const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      setProducts(normalizeProducts(querySnapshot.docs));
+    } catch (error) {
+      console.error('Error fetching storefront data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStorefrontData();
+  }, [fetchStorefrontData]);
+
+  useEffect(() => {
+    setDisplayLimit(PRODUCTS_PER_PAGE);
+  }, [searchQuery, categoryFilter, stockFilter]);
+
+  useEffect(() => {
+    let ticking = false;
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentY = window.scrollY;
+          setCompactSearchBar(currentY > 100);
+
+          if (currentY <= 0) {
+            setShowSearchBar(true);
+          } else if (currentY > lastScrollY.current + 15) {
+            setShowSearchBar(false);
+          } else if (currentY < lastScrollY.current - 15) {
+            setShowSearchBar(true);
+          }
+
+          lastScrollY.current = currentY > 0 ? currentY : 0;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const handlePageShow = (event: Event) => {
+      const e = event as PageTransitionEvent;
+      if (e.persisted) {
+        fetchStorefrontData();
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, [fetchStorefrontData]);
+
+  const uniqueCategories = useMemo(() => {
+    const cats = products
+      .map((p) => p.category)
+      .filter((c) => c && c.trim() !== '');
+    return Array.from(new Set(cats));
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const name = (product.name || '').toLowerCase();
+      const description = (product.description || '').toLowerCase();
+
+      const matchesSearch =
+        name.includes(searchQuery.toLowerCase()) ||
+        description.includes(searchQuery.toLowerCase());
+
+      const matchesStock = stockFilter === 'all' || product.status === stockFilter;
+      const matchesCategory =
+        categoryFilter === 'all' || (product.category || DEFAULT_CATEGORY) === categoryFilter;
+
+      return matchesSearch && matchesStock && matchesCategory;
+    });
+  }, [products, searchQuery, stockFilter, categoryFilter]);
+
+  const displayedProducts = filteredProducts.slice(0, displayLimit);
+  const hasMore = displayLimit < filteredProducts.length;
+
+  if (!mounted) return null;
+
+  if (loading) {
+    const loadingText = lang === 'kh' ? 'កំពុងរៀបចំហាង...' : 'Getting your store ready...';
+    const loadingSubtext = lang === 'kh' ? 'សូមរង់ចាំ ផលិតផលល្អៗកំពុងមកដល់' : 'Hang tight, great products are on the way';
+
+    return (
+      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-300 flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center gap-8">
+          <div className="flex flex-col items-center">
+            <div className="relative w-24 h-24 mb-6">
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-orange-300 rounded-3xl opacity-20 animate-pulse"></div>
+              <div className="absolute inset-2 bg-gradient-to-r from-orange-400 to-orange-300 rounded-2xl opacity-10 animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-4xl font-extrabold text-orange-400 animate-pulse">✨</div>
+              </div>
+            </div>
+          </div>
+          <div className="text-center">
+            <h2 className="text-2xl font-extrabold text-stone-800 dark:text-white mb-2 tracking-tight">{loadingText}</h2>
+            <p className="text-stone-500 dark:text-stone-400 text-sm font-medium">{loadingSubtext}</p>
+          </div>
+          <div className="flex gap-2">
+            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
+            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-300 selection:bg-orange-200 selection:text-orange-900">
+      <Header
+        storeName={settings.storeName}
+        logoUrl={settings.logoUrl}
+        logoSize={settings.logoSize}
+        logoOffsetY={settings.logoOffsetY}
+        lang={lang}
+        toggleLang={toggleLang}
+      />
+
+      <main className="container mx-auto px-4 sm:px-6 py-8 sm:py-12 relative">
+        
+        {settings.showDevBanner && (
+          <div className="max-w-2xl mx-auto mb-10 flex justify-center animate-fade-up">
+            <div className="inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-full bg-stone-200/50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 shadow-sm backdrop-blur-sm">
+              <Info className="w-4 h-4 shrink-0 text-stone-400 dark:text-stone-500" />
+              <p className="text-xs sm:text-sm font-medium">
+                {t(
+                  "We're currently uploading our inventory. Feel free to browse and message us!",
+                  "គេហទំព័រកំពុងរៀបចំបញ្ចូលផលិតផលបន្ថែម។ លោកអ្នកអាចមើលកម្សាន្ត និងសួរព័ត៌មានបានធម្មតា។"
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-14 flex flex-col items-center animate-fade-up">
+          {settings.heroImageUrl && (
+            <img
+              src={settings.heroImageUrl}
+              alt={`${settings.storeName} Hero`}
+              className="mb-6 sm:mb-8 object-contain drop-shadow-sm transition-all duration-300 hover:scale-105"
+              style={{ height: `${settings.heroImageSize}px` }}
+            />
+          )}
+
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-stone-800 dark:text-white mb-4 sm:mb-6 tracking-tight uppercase">
+            {settings.storeName}
+          </h1>
+
+          <p className="text-base sm:text-lg text-black dark:text-stone-200 font-semibold leading-relaxed">
+            {lang === 'kh' && settings.taglineKh ? settings.taglineKh : settings.tagline}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4 mt-6 animate-fade-up" style={{ animationDelay: '100ms' }}>
+{settings.facebookUrl && (
+                <a href={settings.facebookUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20 rounded-xl font-bold text-sm transition-transform hover:scale-105 active:scale-95">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M22.675 0H1.326C.593 0 0 .593 0 1.326v21.348C0 23.407.593 24 1.326 24H12.82V14.706h-3.128v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.464.099 2.796.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12V24h6.116C23.407 24 24 23.407 24 22.674V1.326C24 .593 23.407 0 22.675 0z" />
+                  </svg>
+                  Facebook
+                </a>
+              )}
+{settings.telegramUrl && (
+                <a href={settings.telegramUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-sky-50 text-sky-600 hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-400 dark:hover:bg-sky-500/20 rounded-xl font-bold text-sm transition-transform hover:scale-105 active:scale-95">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.479.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.833-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                  </svg>
+                  Telegram
+                </a>
+              )}
+{settings.tiktokUrl && (
+               <a href={settings.tiktokUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-stone-100 text-stone-800 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700 rounded-xl font-bold text-sm transition-transform hover:scale-105 active:scale-95">
+                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                   <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                 </svg>
+                 TikTok
+               </a>
+             )}
+{settings.mapsUrl && (
+               <a href={settings.mapsUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:hover:bg-emerald-500/20 rounded-xl font-bold text-sm transition-transform hover:scale-105 active:scale-95">
+                 <MapPin className="w-4 h-4" /> {lang === 'kh' ? 'ទីតាំង' : 'Location'}
+               </a>
+             )}
+          </div>
+        </div>
+
+        <div
+          className={[
+            'sticky z-40 mb-8 sm:mb-10 transition-all duration-500 ease-in-out',
+            'top-[88px] md:top-24',
+            showSearchBar ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none'
+          ].join(' ')}
+        >
+          <div
+            className={[
+              'max-w-5xl mx-auto bg-white/90 dark:bg-stone-900/90 backdrop-blur-xl border border-stone-200/70 dark:border-stone-800 shadow-lg shadow-stone-200/30 dark:shadow-black/20',
+              'rounded-2xl md:rounded-[2rem]',
+              compactSearchBar ? 'p-2.5' : 'p-3',
+            ].join(' ')}
+          >
+            <div className="flex flex-col gap-3 md:flex-row md:items-center">
+              <div className="flex-1 relative flex items-center group">
+                <Search className="w-5 h-5 text-stone-400 absolute left-4 group-focus-within:text-orange-400 transition-colors" />
+                <input
+                  type="text"
+                  placeholder={t('Search products...', 'ស្វែងរកផលិតផល...')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-stone-50/80 dark:bg-stone-950/70 border border-stone-200 dark:border-stone-800 rounded-xl md:rounded-2xl outline-none text-stone-800 dark:text-white placeholder-stone-400 text-sm font-medium focus:ring-4 focus:ring-orange-400/10 focus:border-orange-300 transition-all"
+                />
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto no-scrollbar md:overflow-visible md:border-l md:border-stone-200 dark:md:border-stone-800 md:pl-3 shrink-0">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="min-w-[150px] px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl text-sm font-bold text-stone-600 dark:text-stone-300 outline-none focus:ring-2 focus:ring-orange-400/20 cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors"
+                >
+                  <option value="all">{t('All Categories', 'ប្រភេទទាំងអស់')}</option>
+                  {uniqueCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={stockFilter}
+                  onChange={(e) => setStockFilter(e.target.value)}
+                  className="min-w-[140px] px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl text-sm font-bold text-stone-600 dark:text-stone-300 outline-none focus:ring-2 focus:ring-orange-400/20 cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors"
+                >
+                  <option value="all">{t('All Items', 'ទំនិញទាំងអស់')}</option>
+                  <option value="in_stock">{t('In Stock Only', 'មានក្នុងស្តុកតែប៉ុណ្ណោះ')}</option>
+                  <option value="check_seller">{t('Ask Seller', 'សួរអ្នកលក់')}</option>
+                  <option value="out_of_stock">{t('Out of Stock', 'អស់ពីស្តុក')}</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-8">
+            {[...Array(8)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        ) : products.length === 0 ? (
+          <div className="text-center text-stone-500 py-20 bg-white dark:bg-stone-900 rounded-3xl border border-stone-100 dark:border-stone-800 shadow-sm">
+            <p className="text-lg font-bold text-stone-800 dark:text-white mb-2">
+              {t('Your catalog is empty.', 'កាតាឡុករបស់អ្នកទទេរ៉។')}
+            </p>
+            <p className="text-sm text-stone-800 dark:text-stone-200 font-semibold">
+              {t(
+                'Log into the admin portal to add your first product.',
+                'ចូលទៅកាន់វិបផតថលអ្នកគ្រប់គ្រងដើម្បីបន្ថែមផលិតផលដំបូងរបស់អ្នក។'
+              )}
+            </p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="text-center py-20 flex flex-col items-center justify-center bg-white/50 dark:bg-stone-900/50 rounded-3xl border border-dashed border-stone-200 dark:border-stone-800">
+            <div className="w-16 h-16 bg-stone-100 dark:bg-stone-800 rounded-2xl flex items-center justify-center mb-4">
+              <FilterX className="w-8 h-8 text-stone-400" />
+            </div>
+            <p className="text-lg font-bold text-stone-800 dark:text-white mb-2">
+              {t('No products found.', 'រកមិនឃើញផលិតផលទេ។')}
+            </p>
+            <p className="text-stone-800 dark:text-stone-200 font-semibold text-sm mb-6">
+              {t("We couldn't find anything matching", "យើងរកមិនឃើញអ្វីដែលត្រូវគ្នាទេ")} "{searchQuery}".
+            </p>
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setStockFilter('all');
+                setCategoryFilter('all');
+              }}
+              className="px-6 py-2.5 bg-orange-50 dark:bg-stone-800 text-orange-500 dark:text-orange-400 font-bold rounded-xl hover:bg-orange-100 dark:hover:bg-stone-700 transition-colors text-sm active:scale-95"
+            >
+              {t('Clear Filters', 'លុបការចម្រាញ់')}
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-8">
+              {displayedProducts.map((product, index) => (
+                <div
+                  key={product.id}
+                  className="animate-fade-up"
+                  style={{ animationDelay: `${(index % PRODUCTS_PER_PAGE) * 40}ms` }}
+                >
+                  <ProductCard
+                    product={product}
+                    telegramHandle={settings.telegramHandle}
+                    lang={lang}
+                  />
+                </div>
+              ))}
+            </div>
+            
+            {hasMore && (
+              <div className="mt-12 text-center">
+                <button
+                  onClick={() => setDisplayLimit(prev => prev + PRODUCTS_PER_PAGE)}
+                  className="inline-flex items-center gap-2 px-8 py-4 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 hover:border-orange-300 dark:hover:border-orange-500/50 rounded-2xl font-bold text-stone-800 dark:text-stone-200 hover:text-orange-500 transition-all duration-300 shadow-sm active:scale-95"
+                >
+                  <Loader2 className="w-5 h-5 animate-spin hidden" /> 
+                  {t('Load More Products', 'ផ្ទុកផលិតផលបន្ថែម')}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </main>
+    </div>
+  );
+}---
+./app/globals.css
+---
+@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  color-scheme: light;
+}
+
+html.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  scroll-behavior: smooth;
+  transition: background-color 150ms ease-in-out, color 150ms ease-in-out;
+}
+
+/* Allow smooth background animation when next-themes disables transitions */
+html.transition-none {
+  transition: background-color 150ms ease-in-out, color 150ms ease-in-out !important;
+}
+
+html.transition-none body {
+  transition: background-color 150ms ease-in-out, color 150ms ease-in-out !important;
+}
+
+/* Keep theme toggle button animation working during theme switch */
+html.transition-none button[aria-label="Toggle Dark Mode"],
+html.transition-none button[aria-label="Toggle Language"] {
+  transition: all 300ms ease-in-out !important;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Khmer OS System", "Noto Sans Khmer", Hanuman, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  transition: background-color 150ms ease-in-out, color 150ms ease-in-out !important;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.55s ease-out both;
+}
+
+@keyframes slide-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in-up {
+  animation: slide-in-up 0.4s ease-out;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Telegram Mini App custom properties                                */
+/* Set by TelegramProvider.tsx at runtime inside Telegram webview.    */
+/* Fall back to your brand colors when outside Telegram.              */
+/* ------------------------------------------------------------------ */
+:root {
+  --tg-bg-color: #ffffff;
+  --tg-text-color: #171717;
+  --tg-hint-color: #a1a1a1;
+  --tg-link-color: #2678b2;
+  --tg-button-color: #ff6600;
+  --tg-button-text-color: #ffffff;
+  --tg-secondary-bg-color: #f5f5f5;
+  --tg-header-bg-color: #ffffff;
+  --tg-bottom-bar-bg-color: #f5f5f5;
+  --tg-section-bg-color: #ffffff;
+  --tg-section-header-text-color: #6f6f6f;
+  --tg-subtitle-text-color: #a1a1a1;
+  --tg-destructive-text-color: #e53935;
+
+  /* Viewport height set by Telegram (falls back to 100vh) */
+  --tg-viewport-height: 100vh;
+  --tg-safe-area-top: env(safe-area-inset-top, 0px);
+  --tg-safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Override defaults when dark class is present */
+.dark {
+  --tg-bg-color: #0a0a0a;
+  --tg-text-color: #ededed;
+  --tg-hint-color: #6f6f6f;
+  --tg-link-color: #5ba0d0;
+  --tg-button-color: #ff6600;
+  --tg-button-text-color: #ffffff;
+  --tg-secondary-bg-color: #1c1c1c;
+  --tg-header-bg-color: #1c1c1c;
+  --tg-bottom-bar-bg-color: #1c1c1c;
+  --tg-section-bg-color: #0a0a0a;
+  --tg-section-header-text-color: #6f6f6f;
+  --tg-subtitle-text-color: #6f6f6f;
+  --tg-destructive-text-color: #ef5350;
+}
+---
+./app/providers.tsx
+---
+'use client';
+
+import { ThemeProvider } from 'next-themes';
+import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+import { CartProvider } from '@/lib/cartContext';
+import CartModal from '@/components/CartModal';
+import TelegramProvider from '@/components/TelegramProvider';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  // BULLETPROOF BACK BUTTON FIX:
+  // Next.js soft-routing caches the body state. This hook watches the actual URL route.
+  // Every time you navigate (e.g., hitting the back button from /admin to /), 
+  // it forcefully strips away any stuck scroll locks.
+  useEffect(() => {
+    document.body.style.overflow = '';
+    document.body.style.pointerEvents = '';
+  }, [pathname]);
+
+  return (
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange={false}
+      storageKey="theme"
+    >
+      <CartProvider>
+        <TelegramProvider>
+          {children}
+          <CartModal />
+        </TelegramProvider>
+      </CartProvider>
+    </ThemeProvider>
+  );
+}---
+./next-env.d.ts
+---
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+---
+./components/StickySearchBar.tsx
+---
+'use client';
+
+import { useEffect, useState, useRef, useMemo } from 'react';
+import { Search } from 'lucide-react';
+
+interface StickySearchBarProps {
+  searchQuery: string;
+  setSearchQuery: (val: string) => void;
+  categoryFilter: string;
+  setCategoryFilter: (val: string) => void;
+  stockFilter: string;
+  setStockFilter: (val: string) => void;
+  uniqueCategories: string[];
+  lang: string;
+}
+
+const t = (lang: string, en: string, kh: string) => (lang === 'kh' ? kh : en);
+
+export default function StickySearchBar({
+  searchQuery,
+  setSearchQuery,
+  categoryFilter,
+  setCategoryFilter,
+  stockFilter,
+  setStockFilter,
+  uniqueCategories,
+  lang,
+}: StickySearchBarProps) {
+  const [showSearchBar, setShowSearchBar] = useState(true);
+  const [compactSearchBar, setCompactSearchBar] = useState(false);
+
+  const lastScrollY = useRef(0);
+
+  // Scroll tracking — isolated in this component so it never re-renders the product grid
+  useEffect(() => {
+    let ticking = false;
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentY = window.scrollY;
+          setCompactSearchBar(currentY > 100);
+
+          if (currentY > lastScrollY.current + 15) {
+            setShowSearchBar(false);
+          } else if (currentY < lastScrollY.current - 15) {
+            setShowSearchBar(true);
+          }
+
+          lastScrollY.current = currentY > 0 ? currentY : 0;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  if (!showSearchBar) return null;
+
+  return (
+    <div
+      className={[
+        'sticky z-40 mb-8 sm:mb-10 transition-all duration-500 ease-in-out',
+        'top-[88px] md:top-24',
+        showSearchBar ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none',
+      ].join(' ')}
+    >
+      <div
+        className={[
+          'max-w-5xl mx-auto bg-white/90 dark:bg-stone-900/90 backdrop-blur-xl border border-stone-200/70 dark:border-stone-800 shadow-lg shadow-stone-200/30 dark:shadow-black/20',
+          'rounded-2xl md:rounded-[2rem]',
+          compactSearchBar ? 'p-2.5' : 'p-3',
+        ].join(' ')}
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="flex-1 relative flex items-center group">
+            <Search className="w-5 h-5 text-stone-400 absolute left-4 group-focus-within:text-orange-400 transition-colors" />
+            <input
+              type="text"
+              placeholder={t(lang, 'Search products...', 'ស្វែងរកផលិតផល...')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-12 pr-4 py-3 bg-stone-50/80 dark:bg-stone-950/70 border border-stone-200 dark:border-stone-800 rounded-xl md:rounded-2xl outline-none text-stone-800 dark:text-white placeholder-stone-400 text-sm font-medium focus:ring-4 focus:ring-orange-400/10 focus:border-orange-300 transition-all"
+            />
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto no-scrollbar md:overflow-visible md:border-l md:border-stone-200 dark:md:border-stone-800 md:pl-3 shrink-0">
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="min-w-[150px] px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl text-sm font-bold text-stone-600 dark:text-stone-300 outline-none focus:ring-2 focus:ring-orange-400/20 cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors"
+            >
+              <option value="all">{t(lang, 'All Categories', 'ប្រភេទទាំងអស់')}</option>
+              {uniqueCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+              className="min-w-[140px] px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl text-sm font-bold text-stone-600 dark:text-stone-300 outline-none focus:ring-2 focus:ring-orange-400/20 cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors"
+            >
+              <option value="all">{t(lang, 'All Items', 'ទំនិញទាំងអស់')}</option>
+              <option value="in_stock">{t(lang, 'In Stock Only', 'មានក្នុងស្តុកតែប៉ុណ្ណោះ')}</option>
+              <option value="check_seller">{t(lang, 'Ask Seller', 'សួរអ្នកលក់')}</option>
+              <option value="out_of_stock">{t(lang, 'Out of Stock', 'អស់ពីស្តុក')}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}---
+./components/CartModal.tsx
+---
+'use client';
+
+import { useCart } from '@/lib/cartContext';
+import { Trash2, Plus, Minus, Send, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+
+export default function CartModal() {
+  const { items, removeFromCart, updateQuantity, clearCart, getTotal, isCartOpen, setIsCartOpen } = useCart();
+  const [mounted, setMounted] = useState(false);
+  const [lang, setLang] = useState<string>('en');
+  const [telegramHandle, setTelegramHandle] = useState('');
+
+  useEffect(() => {
+    setMounted(true);
+    const savedLang = localStorage.getItem('siteLang') || 'en';
+    setLang(savedLang);
+
+    // Listen for language change events
+    const handleLanguageChange = (e: Event) => {
+      const event = e as CustomEvent;
+      if (event.detail?.lang) {
+        setLang(event.detail.lang);
+      }
+    };
+
+    window.addEventListener('languageChange', handleLanguageChange);
+    return () => window.removeEventListener('languageChange', handleLanguageChange);
+  }, []);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+        const res = await fetch(
+          `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/settings/global`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setTelegramHandle(data.fields?.telegramHandle?.stringValue || 'your_telegram_username');
+        }
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+      }
+    };
+
+    fetchSettings();
+  }, []);
+
+  const t = {
+    en: {
+      yourCart: 'Your Cart',
+      empty: 'Your cart is empty',
+      continueShopping: 'Continue Shopping',
+      item: 'Item',
+      quantity: 'Qty',
+      price: 'Price',
+      subtotal: 'Subtotal',
+      total: 'Total',
+      inquireVia: 'Inquire via Telegram',
+      remove: 'Remove',
+      emptyCart: 'Clear Cart',
+    },
+    kh: {
+      yourCart: 'កន្ត្រករបស់អ្នក',
+      empty: 'កន្ត្រករបស់អ្នកគឺទទេ',
+      continueShopping: 'បន្តការទិញ',
+      item: 'ផលិតផល',
+      quantity: 'ចំនួន',
+      price: 'តម្លៃ',
+      subtotal: 'សរុប',
+      total: 'ទាំងអស់',
+      inquireVia: 'សាកសួរតាម Telegram',
+      remove: 'លុប',
+      emptyCart: 'សម្អាតកន្ត្រក',
+    },
+  };
+
+  const dict = t[lang as keyof typeof t] || t.en;
+  const cleanHandle = telegramHandle.replace('@', '').trim();
+  const total = getTotal();
+
+  const generateMessage = () => {
+    let message = lang === 'kh' 
+      ? 'សួស្តី ខ្ញុំសុំសួរព័ត៌មានអំពីមុខទំនិញខាងក្រោម៖\n\n'
+      : 'Hi, I am interested in the following items:\n\n';
+
+    items.forEach((item) => {
+      if (item.hidePrice) {
+        message += lang === 'kh'
+          ? `• ${item.name} (${item.variantName}) - ចំនួន: ${item.quantity}\n`
+          : `• ${item.name} (${item.variantName}) - Qty: ${item.quantity}\n`;
+      } else {
+        message += lang === 'kh'
+          ? `• ${item.name} (${item.variantName}) - $${item.price.toFixed(2)} x ${item.quantity}\n`
+          : `• ${item.name} (${item.variantName}) - $${item.price.toFixed(2)} x ${item.quantity}\n`;
+      }
+    });
+
+    const hasVisiblePrices = items.some(item => !item.hidePrice);
+    if (hasVisiblePrices) {
+      message += `\n${lang === 'kh' ? 'សរុប' : 'Total'}: $${total.toFixed(2)}`;
+    }
+
+    message += lang === 'kh'
+      ? '\n\nតើអីវ៉ាន់ទាំងនេះនៅមានស្តុកដែរឬទេ?'
+      : '\n\nAre these items available?';
+
+    return encodeURIComponent(message);
+  };
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className={`fixed inset-0 z-40 transition-all duration-300 ease-out ${
+          isCartOpen ? 'bg-black/40 backdrop-blur-sm opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setIsCartOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* Modal */}
+      <div className={`fixed inset-y-0 right-0 w-full sm:w-96 bg-white dark:bg-stone-950 shadow-2xl z-50 flex flex-col overflow-hidden transition-all duration-300 ease-out ${
+        isCartOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+      }`}>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-stone-200 dark:border-stone-800 p-4 sm:p-6 bg-white dark:bg-stone-950 flex-shrink-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-stone-900 dark:text-white">
+            {dict.yourCart}
+          </h1>
+          <button
+            onClick={() => setIsCartOpen(false)}
+            className="p-2 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-colors text-stone-600 dark:text-stone-400"
+            aria-label="Close cart"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+              <div className="text-stone-300 dark:text-stone-600 mb-4">
+                <svg
+                  className="w-12 h-12 mx-auto"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                  />
+                </svg>
+              </div>
+              <p className="text-stone-500 dark:text-stone-400 font-medium">
+                {dict.empty}
+              </p>
+            </div>
+          ) : (
+            <div className="p-4 sm:p-6 space-y-4">
+              {items.map((item) => (
+                <div
+                  key={`${item.id}-${item.variantName}`}
+                  className="flex gap-3 sm:gap-4 pb-4 border-b border-stone-200 dark:border-stone-800 last:border-0 animate-in fade-in slide-in-from-top-2 duration-300"
+                >
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-stone-900 dark:text-white text-sm sm:text-base truncate">
+                      {item.name}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-stone-500 dark:text-stone-400">
+                      {item.variantName}
+                    </p>
+                    {!item.hidePrice && (
+                      <p className="text-base sm:text-lg font-bold text-orange-500 mt-1">
+                        ${item.price.toFixed(2)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1 bg-stone-100 dark:bg-stone-900 rounded-lg p-1">
+                      <button
+                        onClick={() =>
+                          updateQuantity(item.id, item.variantName, item.quantity - 1)
+                        }
+                        className="p-1 hover:bg-stone-200 dark:hover:bg-stone-800 rounded transition-colors text-stone-600 dark:text-stone-400"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="w-6 text-center font-semibold text-sm text-stone-900 dark:text-white">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() =>
+                          updateQuantity(item.id, item.variantName, item.quantity + 1)
+                        }
+                        className="p-1 hover:bg-stone-200 dark:hover:bg-stone-800 rounded transition-colors text-stone-600 dark:text-stone-400"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <button
+                      onClick={() =>
+                        removeFromCart(item.id, item.variantName)
+                      }
+                      className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded transition-colors"
+                      aria-label={`${dict.remove} ${item.name}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {items.length > 0 && (
+          <div className="border-t border-stone-200 dark:border-stone-800 p-4 sm:p-6 space-y-3 bg-white dark:bg-stone-950 flex-shrink-0">
+            <div className="flex justify-between text-base sm:text-lg font-bold text-stone-900 dark:text-white">
+              <span>{dict.total}:</span>
+              <span className="text-orange-500">${total.toFixed(2)}</span>
+            </div>
+
+            <a
+              href={`https://t.me/${cleanHandle}?text=${generateMessage()}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-center gap-2 px-4 sm:px-6 py-3 bg-[#2AABEE] hover:bg-[#229ED9] active:scale-95 text-white font-bold rounded-xl transition-all duration-300 group shadow-lg shadow-[#2AABEE]/20"
+            >
+              <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              {dict.inquireVia}
+            </a>
+
+            <div className="flex gap-2 flex-col sm:flex-row">
+              <button
+                onClick={() => setIsCartOpen(false)}
+                className="flex-1 px-4 py-2 sm:py-2.5 bg-stone-100 hover:bg-stone-200 dark:bg-stone-900 dark:hover:bg-stone-800 text-stone-900 dark:text-white font-semibold rounded-xl transition-colors active:scale-95 text-sm sm:text-base"
+              >
+                {dict.continueShopping}
+              </button>
+              <button
+                onClick={() => clearCart()}
+                className="flex-1 px-4 py-2 sm:py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 font-semibold rounded-xl transition-colors active:scale-95 text-sm sm:text-base"
+              >
+                {dict.emptyCart}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+---
+./components/TelegramProvider.tsx
+---
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { useTheme } from 'next-themes';
+import {
+  isTelegramWebApp,
+  telegramReady,
+  expandApp,
+  getThemeParams,
+  getTelegramColorScheme,
+  onThemeChanged,
+  onViewportChanged,
+  type TelegramThemeParams,
+} from '@/lib/telegram';
+
+// Map Telegram color keys to CSS custom property names
+const TELEGRAM_CSS_MAP: Record<keyof TelegramThemeParams, string> = {
+  bg_color: '--tg-bg-color',
+  text_color: '--tg-text-color',
+  hint_color: '--tg-hint-color',
+  link_color: '--tg-link-color',
+  button_color: '--tg-button-color',
+  button_text_color: '--tg-button-text-color',
+  secondary_bg_color: '--tg-secondary-bg-color',
+  header_bg_color: '--tg-header-bg-color',
+  bottom_bar_bg_color: '--tg-bottom-bar-bg-color',
+  section_bg_color: '--tg-section-bg-color',
+  section_header_text_color: '--tg-section-header-text-color',
+  subtitle_text_color: '--tg-subtitle-text-color',
+  destructive_text_color: '--tg-destructive-text-color',
+};
+
+/**
+ * Applies Telegram theme colors as CSS custom properties on <html>.
+ * Falls back gracefully when not inside Telegram.
+ */
+function applyTelegramTheme() {
+  const params = getThemeParams();
+  if (!params) return;
+
+  const root = document.documentElement;
+
+  for (const [tgKey, cssVar] of Object.entries(TELEGRAM_CSS_MAP)) {
+    const color = params[tgKey as keyof TelegramThemeParams];
+    if (color) {
+      root.style.setProperty(cssVar, color);
+    }
+  }
+}
+
+/**
+ * Syncs Telegram's colorScheme with next-themes.
+ */
+function syncColorScheme(setTheme: (theme: string) => void) {
+  const scheme = getTelegramColorScheme();
+  if (scheme) {
+    setTheme(scheme);
+  }
+}
+
+export default function TelegramProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { setTheme } = useTheme();
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    if (!isTelegramWebApp()) return;
+    if (initialized.current) return;
+    initialized.current = true;
+
+    // 1. Apply Telegram colors as CSS variables
+    applyTelegramTheme();
+
+    // 2. Sync initial color scheme with next-themes
+    syncColorScheme(setTheme);
+
+    // 3. Expand to full height inside Telegram
+    expandApp();
+
+    // 4. Tell Telegram the app is ready
+    telegramReady();
+
+    // 5. Listen for theme changes (user switches Telegram theme)
+    const unsubTheme = onThemeChanged(() => {
+      applyTelegramTheme();
+      syncColorScheme(setTheme);
+    });
+
+    // 6. Listen for viewport changes (keyboard open/close, etc.)
+    const unsubViewport = onViewportChanged((height) => {
+      // Set a CSS variable so sticky/fixed elements can adjust
+      document.documentElement.style.setProperty(
+        '--tg-viewport-height',
+        `${height}px`
+      );
+    });
+
+    return () => {
+      unsubTheme();
+      unsubViewport();
+    };
+  }, [setTheme]);
+
+  return <>{children}</>;
+}---
+./components/ProductCard.tsx
+---
+'use client';
+
+import { Send, X, ZoomIn, ShoppingCart } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useCart } from '@/lib/cartContext';
+
+interface Variant {
+  name: string;
+  price: number;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  descriptionKh?: string;
+  price?: number;
+  variants?: Variant[];
+  hidePrice?: boolean;
+  imageUrl: string;
+  status: 'in_stock' | 'out_of_stock' | 'check_seller';
+}
+
+const dict = {
+  en: {
+    dmPrice: 'DM FOR PRICE',
+    inStock: 'IN STOCK',
+    outOfStock: 'OUT OF STOCK',
+    askSeller: 'ASK SELLER',
+    unavailable: 'CURRENTLY UNAVAILABLE',
+    inquire: 'Inquire via Telegram',
+    msgHidden: 'Hi, I am interested in *{name}*. Can you provide the price and availability?',
+    msgPrice: 'Hi, I am interested in *{name}* priced at ${price}. Is it available?',
+  },
+  kh: {
+    dmPrice: 'ឆាតសួរតម្លៃ',
+    inStock: 'មានក្នុងស្តុក',
+    outOfStock: 'អស់ពីស្តុក',
+    askSeller: 'សួរអ្នកលក់',
+    unavailable: 'បច្ចុប្បន្នមិនមានលក់ទេ',
+    inquire: 'សាកសួរតាម Telegram',
+    msgHidden: 'សួស្តី ខ្ញុំសុំសួរព័ត៌មានពី *{name}*។ តើអីវ៉ាន់នេះនៅមានស្តុកទេ ហើយតម្លៃប៉ុន្មានដែរ?',
+    msgPrice: 'សួស្តី ខ្ញុំចង់សួរពី *{name}* (តម្លៃ ${price})។ តើនៅមានស្តុកដែរទេ?',
+  },
+};
+
+export default function ProductCard({
+  product,
+  telegramHandle,
+  lang = 'en',
+}: {
+  product: Product;
+  telegramHandle: string;
+  lang?: string;
+}) {
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [selectedVarIdx, setSelectedVarIdx] = useState(0);
+  const [addedFeedback, setAddedFeedback] = useState(false);
+  const { addToCart } = useCart();
+
+  const hasVariants = product.variants && product.variants.length > 0;
+  const displayVariants = hasVariants
+    ? product.variants!
+    : [{ name: 'Standard', price: product.price || 0 }];
+
+  const activeVariant = displayVariants[selectedVarIdx] || displayVariants[0];
+  const t = dict[lang as keyof typeof dict] || dict.en;
+
+  const displayDescription =
+    lang === 'kh' && product.descriptionKh ? product.descriptionKh : product.description;
+
+  const safeHandle = telegramHandle || 'your_telegram_username';
+  const cleanHandle = safeHandle.replace('@', '').trim();
+
+  const variantText =
+    hasVariants && activeVariant.name !== 'Standard' ? ` (${activeVariant.name})` : '';
+  const fullNameStr = `${product.name}${variantText}`;
+
+  const message = product.hidePrice
+    ? t.msgHidden.replace('{name}', fullNameStr)
+    : t.msgPrice.replace('{name}', fullNameStr).replace('{price}', activeVariant.price.toFixed(2));
+
+  const encodedMessage = encodeURIComponent(message);
+  const telegramUrl = `https://t.me/${cleanHandle}?text=${encodedMessage}`;
+
+  const getStatusBadge = () => {
+    const baseClasses =
+      'text-[11px] sm:text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5 uppercase tracking-wider w-fit';
+
+    switch (product.status) {
+      case 'in_stock':
+        return (
+          <span className={`${baseClasses} bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-500/20`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            {t.inStock}
+          </span>
+        );
+      case 'out_of_stock':
+        return (
+          <span className={`${baseClasses} bg-red-50 text-red-500 dark:bg-red-500/10 dark:text-red-400 border border-red-100 dark:border-red-500/20`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            {t.outOfStock}
+          </span>
+        );
+      case 'check_seller':
+        return (
+          <span className={`${baseClasses} bg-orange-50 text-orange-500 dark:bg-orange-500/10 dark:text-orange-400 border border-orange-100 dark:border-orange-500/20`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+            {t.askSeller}
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const isOutOfStock = product.status === 'out_of_stock';
+  const buttonClasses =
+    'w-full flex items-center justify-center gap-2 px-4 py-4 sm:py-3.5 rounded-2xl font-bold text-sm sm:text-base transition-transform duration-300 active:scale-[0.98]';
+
+  const openLightbox = () => {
+    if (!product.imageUrl) return;
+    
+    setIsLightboxOpen(true);
+    setIsClosing(false);
+    requestAnimationFrame(() => setIsMounted(true));
+  };
+
+  const closeLightbox = () => {
+    setIsClosing(true);
+    setIsMounted(false);
+    setTimeout(() => {
+      setIsLightboxOpen(false);
+      setIsClosing(false);
+    }, 280);
+  };
+
+  const handleAddToCart = () => {
+    addToCart({
+      id: product.id,
+      name: product.name,
+      variantName: activeVariant.name,
+      price: activeVariant.price,
+      quantity: 1,
+      hidePrice: product.hidePrice || false,
+    });
+    
+    setAddedFeedback(true);
+    setTimeout(() => setAddedFeedback(false), 2000);
+  };
+
+  useEffect(() => {
+    setSelectedVarIdx(0);
+  }, [product.id]);
+
+  useEffect(() => {
+    if (isLightboxOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'auto';
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isLightboxOpen) closeLightbox();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'auto'; 
+    };
+  }, [isLightboxOpen]);
+
+  return (
+    <>
+      <div className="group flex flex-col bg-white dark:bg-stone-900 rounded-3xl overflow-hidden border border-stone-100 dark:border-stone-800 shadow-sm hover:shadow-2xl hover:shadow-stone-200 dark:hover:shadow-black/50 hover:-translate-y-1 transition-transform duration-500 relative">
+        <div
+          onClick={openLightbox}
+          className={`relative aspect-square w-full overflow-hidden bg-stone-100 dark:bg-stone-950 flex items-center justify-center ${product.imageUrl ? 'cursor-zoom-in' : ''}`}
+        >
+          {product.imageUrl && (
+            <>
+              <div className="absolute top-3 right-3 z-20 bg-black/30 backdrop-blur-md p-2.5 sm:p-2 rounded-full sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <ZoomIn className="w-5 h-5 sm:w-4 sm:h-4 text-white" />
+              </div>
+
+              <div
+                className="absolute inset-0 bg-cover bg-center opacity-40 dark:opacity-30 blur-2xl scale-110 saturate-150 transition-transform duration-500 group-hover:scale-125"
+                style={{ backgroundImage: `url(${product.imageUrl})` }}
+              />
+
+              <img
+                src={product.imageUrl}
+                alt={product.name || 'Product Image'}
+                className="relative z-10 max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] object-contain rounded-2xl group-hover:scale-105 transition-transform duration-700 ease-out shadow-2xl"
+                loading="lazy"
+              />
+            </>
+          )}
+        </div>
+
+        <div className="p-5 sm:p-6 flex flex-col flex-grow">
+          <div className="flex justify-between items-start gap-3 sm:gap-4 mb-3">
+            <h3 className="text-lg sm:text-xl font-bold text-stone-800 dark:text-stone-100 tracking-tight leading-tight">
+              {product.name}
+            </h3>
+
+            <span className="text-lg sm:text-xl font-extrabold text-orange-400 shrink-0 mt-0.5">
+              {product.hidePrice ? (
+                <span className="text-[10px] sm:text-[11px] px-2.5 py-1.5 font-bold tracking-wider bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-lg">
+                  {t.dmPrice}
+                </span>
+              ) : (
+                `$${activeVariant.price.toFixed(2)}`
+              )}
+            </span>
+          </div>
+
+          <div className="mb-4">{getStatusBadge()}</div>
+
+          <p className="text-sm sm:text-base text-stone-800 dark:text-stone-200 font-semibold flex-grow mb-5 leading-relaxed whitespace-pre-wrap">
+            {displayDescription}
+          </p>
+
+          {hasVariants && displayVariants.length > 1 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {displayVariants.map((v, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedVarIdx(idx)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-transform duration-300 hover:scale-[1.05] active:scale-95 ${
+                    selectedVarIdx === idx
+                      ? 'bg-orange-400 text-white border-orange-400 shadow-md shadow-orange-400/20'
+                      : 'bg-stone-50 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-700 hover:border-orange-300 dark:hover:border-orange-500/50'
+                  }`}
+                >
+                  {v.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {isOutOfStock ? (
+            <button
+              disabled
+              className={`${buttonClasses} bg-stone-50 text-stone-400 dark:bg-stone-800/50 dark:text-stone-500 cursor-not-allowed`}
+            >
+              <Send className="w-5 h-5 sm:w-4 sm:h-4" />
+              {t.unavailable}
+            </button>
+          ) : (
+            <div className="space-y-2 mt-auto">
+              <a
+                href={telegramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`${buttonClasses} bg-[#2AABEE] text-white hover:bg-[#229ED9] hover:scale-[1.02] shadow-lg shadow-[#2AABEE]/20 hover:shadow-[#2AABEE]/40`}
+              >
+                <Send className="w-5 h-5 sm:w-4 sm:h-4" />
+                {t.inquire}
+              </a>
+              
+              <button
+                onClick={handleAddToCart}
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-bold text-sm transition-transform duration-300 active:scale-95 ${
+                  addedFeedback
+                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                    : 'bg-stone-100 text-stone-500 hover:bg-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:hover:bg-stone-700'
+                }`}
+              >
+                <ShoppingCart className="w-4 h-4" />
+                {addedFeedback ? (lang === 'kh' ? '✓ បានបញ្ចូល!' : '✓ Added!') : (lang === 'kh' ? 'ដាក់ចូលកន្ត្រក' : 'Add to Cart')}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isLightboxOpen && product.imageUrl && typeof document !== 'undefined' && createPortal(
+        <div
+          className={`fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4 sm:p-8 transition-opacity duration-300 ease-out ${
+            isMounted && !isClosing ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={closeLightbox}
+        >
+          <button
+            className={`absolute top-4 sm:top-6 right-4 sm:right-6 p-3 sm:p-4 bg-white/10 hover:bg-white/20 hover:scale-110 active:scale-90 rounded-full transition-all duration-300 z-[101] ${
+              isMounted && !isClosing ? 'scale-100 opacity-100' : 'scale-50 opacity-0'
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              closeLightbox();
+            }}
+            aria-label="Close"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+
+          <img
+            src={product.imageUrl}
+            className={`w-[95vw] h-[95vh] object-contain rounded-2xl shadow-2xl transition-all duration-300 ${
+              isMounted && !isClosing
+                ? 'scale-100 translate-y-0 blur-none opacity-100'
+                : 'scale-90 translate-y-8 blur-sm opacity-0'
+            }`}
+            alt={product.name}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}---
+./components/Header.tsx
+---
+'use client';
+
+import { useTheme } from 'next-themes';
+import { Sun, Moon, ShoppingBag, ShoppingCart } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useCart } from '@/lib/cartContext';
+
+interface HeaderProps {
+  storeName: string;
+  logoUrl?: string;
+  logoSize?: number;
+  logoOffsetY?: number;
+  lang: string;
+  toggleLang: () => void;
+}
+
+export default function Header({
+  storeName,
+  logoUrl,
+  logoSize = 48,
+  logoOffsetY = 0,
+  lang,
+  toggleLang,
+}: HeaderProps) {
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  const { items, setIsCartOpen } = useCart();
+  const cartCount = items.length;
+
+  useEffect(() => setMounted(true), []);
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-orange-100/50 bg-white/80 backdrop-blur-md dark:border-stone-800 dark:bg-stone-950/80 transition-colors duration-300">
+      <div className="container mx-auto px-4 sm:px-6 min-h-20 py-3 flex items-center justify-between gap-3">
+        <Link href="/" className="flex items-center gap-3 group min-w-0">
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={`${storeName} Logo`}
+              style={{ height: `${logoSize}px`, transform: `translateY(${logoOffsetY}px)` }}
+              className="object-contain w-auto max-w-[56px] sm:max-w-none group-hover:scale-105 transition-transform duration-300 rounded-lg shrink-0"
+            />
+          ) : (
+            <div className="bg-orange-50 dark:bg-stone-800 p-2.5 rounded-2xl group-hover:bg-orange-100 dark:group-hover:bg-stone-700 transition-colors duration-300 shrink-0">
+              <ShoppingBag className="w-5 h-5 text-orange-400 group-hover:scale-110 transition-transform" />
+            </div>
+          )}
+
+          <span className="font-extrabold text-base sm:text-xl tracking-tight text-stone-800 dark:text-stone-100 uppercase truncate">
+            {storeName || 'KIM SAN SHOP'}
+          </span>
+        </Link>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {mounted && (
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="relative p-2.5 rounded-xl bg-orange-50 text-orange-400 hover:bg-orange-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white transition-colors duration-300 group"
+              aria-label="Shopping Cart"
+            >
+              <ShoppingCart className="w-5 h-5" />
+              {cartCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {mounted && (
+            <button
+              onClick={toggleLang}
+              className="relative overflow-hidden w-10 h-10 rounded-xl bg-stone-100 text-stone-600 hover:bg-stone-200 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 transition-colors duration-300 flex items-center justify-center font-extrabold text-sm"
+              aria-label="Toggle Language"
+            >
+              <span className={`absolute transition-all duration-500 ${lang === 'en' ? 'translate-y-0 opacity-100 scale-100' : '-translate-y-8 opacity-0 scale-75'}`}>
+                EN
+              </span>
+              <span className={`absolute transition-all duration-500 ${lang === 'kh' ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-8 opacity-0 scale-75'}`}>
+                KH
+              </span>
+            </button>
+          )}
+
+{mounted && (
+             <button
+               onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+               className="p-2.5 rounded-xl bg-orange-50 text-orange-400 hover:bg-orange-100 dark:bg-stone-900 dark:text-stone-300 dark:hover:bg-stone-800 dark:hover:text-white transition-colors duration-300 relative"
+               aria-label="Toggle Dark Mode"
+             >
+               <div className="w-5 h-5 relative">
+                <Sun className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${resolvedTheme === 'dark' ? 'opacity-100 rotate-0' : 'opacity-0 -rotate-90'}`} />
+                <Moon className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${resolvedTheme === 'dark' ? 'opacity-0 rotate-90' : 'opacity-100 rotate-0'}`} />
+               </div>
+             </button>
+           )}
+        </div>
+      </div>
+    </header>
+  );
+}---
+./lib/cartContext.tsx
+---
+'use client';
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+export interface CartItem {
+  id: string;
+  name: string;
+  variantName: string;
+  price: number;
+  quantity: number;
+  hidePrice: boolean;
+}
+
+interface CartContextType {
+  items: CartItem[];
+  addToCart: (item: CartItem) => void;
+  removeFromCart: (id: string, variantName: string) => void;
+  updateQuantity: (id: string, variantName: string, quantity: number) => void;
+  clearCart: () => void;
+  getTotal: () => number;
+  isCartOpen: boolean;
+  setIsCartOpen: (open: boolean) => void;
+}
+
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+export function CartProvider({ children }: { children: React.ReactNode }) {
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('kimsan_cart');
+      if (saved) {
+        setItems(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Failed to load cart from localStorage:', error);
+    }
+    setHydrated(true);
+  }, []);
+
+  // Save to localStorage whenever items change
+  useEffect(() => {
+    if (hydrated) {
+      localStorage.setItem('kimsan_cart', JSON.stringify(items));
+    }
+  }, [items, hydrated]);
+
+  const addToCart = (newItem: CartItem) => {
+    setItems((prev) => {
+      const existing = prev.find(
+        (item) => item.id === newItem.id && item.variantName === newItem.variantName
+      );
+
+      if (existing) {
+        return prev.map((item) =>
+          item.id === newItem.id && item.variantName === newItem.variantName
+            ? { ...item, quantity: item.quantity + newItem.quantity }
+            : item
+        );
+      }
+
+      return [...prev, newItem];
+    });
+  };
+
+  const removeFromCart = (id: string, variantName: string) => {
+    setItems((prev) => prev.filter((item) => !(item.id === id && item.variantName === variantName)));
+  };
+
+  const updateQuantity = (id: string, variantName: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(id, variantName);
+      return;
+    }
+
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id && item.variantName === variantName
+          ? { ...item, quantity }
+          : item
+      )
+    );
+  };
+
+  const clearCart = () => {
+    setItems([]);
+  };
+
+  const getTotal = () => {
+    return items.reduce((sum, item) => {
+      return sum + (item.hidePrice ? 0 : item.price * item.quantity);
+    }, 0);
+  };
+
+  return (
+    <CartContext.Provider value={{ items, addToCart, removeFromCart, updateQuantity, clearCart, getTotal, isCartOpen, setIsCartOpen }}>
+      {children}
+    </CartContext.Provider>
+  );
+}
+
+export function useCart() {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context;
+}
+---
+./lib/firebase.ts
+---
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+// This prevents Next.js from initializing Firebase multiple times
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+export const auth = getAuth(app);
+export const db = getFirestore(app);---
+./lib/telegram.ts
+---
+'use client';
+
+// ---------------------------------------------------------------------------
+// Telegram Mini App SDK wrapper
+// Only works inside Telegram's in-app browser (webview).
+// Falls back gracefully when opened in a regular browser.
+// ---------------------------------------------------------------------------
+
+export interface TelegramUser {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+  language_code?: string;
+  photo_url?: string;
+  is_premium?: boolean;
+}
+
+export interface TelegramThemeParams {
+  bg_color: string;
+  text_color: string;
+  hint_color: string;
+  link_color: string;
+  button_color: string;
+  button_text_color: string;
+  secondary_bg_color: string;
+  header_bg_color: string;
+  bottom_bar_bg_color: string;
+  section_bg_color: string;
+  section_header_text_color: string;
+  subtitle_text_color: string;
+  destructive_text_color: string;
+}
+
+interface TelegramWebApp {
+  ready: () => void;
+  expand: () => void;
+  close: () => void;
+  enableClosingConfirmation: () => void;
+  disableClosingConfirmation: () => void;
+
+  initData: string;
+  initDataUnsafe: {
+    query_id?: string;
+    user?: TelegramUser;
+    receiver?: TelegramUser;
+    start_param?: string;
+    auth_date?: string;
+    hash?: string;
+  };
+
+  colorScheme: 'light' | 'dark';
+  themeParams: TelegramThemeParams;
+  viewportHeight: number;
+  viewportStableHeight: number;
+
+  isExpanded: boolean;
+  platform: string;
+  version: string;
+
+  // Haptic feedback
+  HapticFeedback?: {
+    impactOccurred: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
+    notificationOccurred: (type: 'error' | 'success' | 'warning') => void;
+    selectionChanged: () => void;
+  };
+
+  // Main button
+  MainButton: {
+    text: string;
+    color: string;
+    textColor: string;
+    isVisible: boolean;
+    isActive: boolean;
+    isProgressVisible: boolean;
+    setText: (text: string) => void;
+    onClick: (callback: () => void) => void;
+    offClick: (callback: () => void) => void;
+    show: () => void;
+    hide: () => void;
+    enable: () => void;
+    disable: () => void;
+    showProgress: (leaveActive?: boolean) => void;
+    hideProgress: () => void;
+    setParams: (params: {
+      text?: string;
+      color?: string;
+      text_color?: string;
+      is_active?: boolean;
+      is_visible?: boolean;
+    }) => void;
+  };
+
+  // Back button
+  BackButton: {
+    isVisible: boolean;
+    onClick: (callback: () => void) => void;
+    offClick: (callback: () => void) => void;
+    show: () => void;
+    hide: () => void;
+  };
+
+  // Settings button
+  SettingsButton: {
+    isVisible: boolean;
+    onClick: (callback: () => void) => void;
+    offClick: (callback: () => void) => void;
+    show: () => void;
+    hide: () => void;
+  };
+
+  // Event bindings
+  onEvent: (eventType: string, callback: () => void) => void;
+  offEvent: (eventType: string, callback: () => void) => void;
+  sendData: (data: string) => void;
+}
+
+// ---------------------------------------------------------------------------
+// Safe accessors (SSR-safe)
+// ---------------------------------------------------------------------------
+
+let _webApp: TelegramWebApp | null = null;
+
+export function getWebApp(): TelegramWebApp | null {
+  if (typeof window === 'undefined') return null;
+
+  if (!_webApp) {
+    // Telegram injects this global
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg) {
+      _webApp = tg;
+    }
+  }
+
+  return _webApp;
+}
+
+/** Returns true when running inside a Telegram Mini App webview. */
+export function isTelegramWebApp(): boolean {
+  return getWebApp() !== null;
+}
+
+/** Returns the authenticated Telegram user, or null outside Telegram. */
+export function getTelegramUser(): TelegramUser | null {
+  return getWebApp()?.initDataUnsafe?.user ?? null;
+}
+
+/** Returns Telegram's current theme params (colors). */
+export function getThemeParams(): TelegramThemeParams | null {
+  return getWebApp()?.themeParams ?? null;
+}
+
+/** Returns Telegram's color scheme preference. */
+export function getTelegramColorScheme(): 'light' | 'dark' | null {
+  return getWebApp()?.colorScheme ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Actions
+// ---------------------------------------------------------------------------
+
+/** Tell Telegram the Mini App is ready to display. */
+export function telegramReady(): void {
+  getWebApp()?.ready();
+}
+
+/** Expand the Mini App to full height. */
+export function expandApp(): void {
+  getWebApp()?.expand();
+}
+
+/** Close the Mini App. */
+export function closeApp(): void {
+  getWebApp()?.close();
+}
+
+/** Prevent accidental closing (swipe-down). */
+export function enableClosingConfirmation(): void {
+  getWebApp()?.enableClosingConfirmation();
+}
+
+export function disableClosingConfirmation(): void {
+  getWebApp()?.disableClosingConfirmation();
+}
+
+// ---------------------------------------------------------------------------
+// Haptic feedback
+// ---------------------------------------------------------------------------
+
+export function hapticLight(): void {
+  getWebApp()?.HapticFeedback?.impactOccurred('light');
+}
+
+export function hapticMedium(): void {
+  getWebApp()?.HapticFeedback?.impactOccurred('medium');
+}
+
+export function hapticHeavy(): void {
+  getWebApp()?.HapticFeedback?.impactOccurred('heavy');
+}
+
+export function hapticSuccess(): void {
+  getWebApp()?.HapticFeedback?.notificationOccurred('success');
+}
+
+export function hapticError(): void {
+  getWebApp()?.HapticFeedback?.notificationOccurred('error');
+}
+
+export function hapticSelection(): void {
+  getWebApp()?.HapticFeedback?.selectionChanged();
+}
+
+// ---------------------------------------------------------------------------
+// Main Button helpers
+// ---------------------------------------------------------------------------
+
+export function showMainButton(
+  text: string,
+  onClick: () => void,
+  options?: { color?: string; textColor?: string }
+): void {
+  const tg = getWebApp();
+  if (!tg) return;
+
+  tg.MainButton.setText(text);
+  if (options?.color) tg.MainButton.color = options.color;
+  if (options?.textColor) tg.MainButton.textColor = options.textColor;
+  tg.MainButton.onClick(onClick);
+  tg.MainButton.show();
+}
+
+export function hideMainButton(): void {
+  getWebApp()?.MainButton.hide();
+}
+
+// ---------------------------------------------------------------------------
+// Back Button helpers
+// ---------------------------------------------------------------------------
+
+export function showBackButton(onClick: () => void): void {
+  const tg = getWebApp();
+  if (!tg) return;
+
+  tg.BackButton.onClick(onClick);
+  tg.BackButton.show();
+}
+
+export function hideBackButton(): void {
+  getWebApp()?.BackButton.hide();
+}
+
+// ---------------------------------------------------------------------------
+// Event listeners (viewport changes, theme changes, etc.)
+// ---------------------------------------------------------------------------
+
+export function onViewportChanged(callback: (height: number) => void): () => void {
+  const tg = getWebApp();
+  if (!tg) return () => {};
+
+  const handler = () => {
+    callback(tg.viewportStableHeight);
+  };
+
+  tg.onEvent('viewportChanged', handler);
+  return () => tg.offEvent('viewportChanged', handler);
+}
+
+export function onThemeChanged(callback: () => void): () => void {
+  const tg = getWebApp();
+  if (!tg) return () => {};
+
+  tg.onEvent('themeChanged', callback);
+  return () => tg.offEvent('themeChanged', callback);
+}---
+./next.config.ts
+---
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  trailingSlash: true,
+
+  // Telegram Mini App: allow embedding in Telegram's webview iframe
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            // Allow Telegram to embed this site in an iframe
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://telegram.org https://*.telegram.org https://*.cloudinary.com",
+              "style-src 'self' 'unsafe-inline' https://telegram.org https://*.cloudinary.com",
+              "img-src 'self' data: https: blob: https://*.cloudinary.com",
+              "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebase.com wss://*.firebaseio.com https://telegram.org https://*.vercel-analytics.com https://api.cloudinary.com https://*.cloudinary.com",
+              "frame-ancestors 'self' https://web.telegram.org https://*.web.telegram.org",
+              "frame-src https://telegram.org https://*.telegram.org https://*.cloudinary.com",
+            ].join("; "),
+          },
+        ],
+      },
+    ];
+  },
+};
+
+export default nextConfig;
