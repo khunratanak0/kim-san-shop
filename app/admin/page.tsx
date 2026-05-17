@@ -31,6 +31,7 @@ import {
   Image as ImageIcon,
   X,
   FileUp,
+  Download,
   Loader2,
   ArrowUp,
   ArrowDown,
@@ -587,7 +588,7 @@ const settingsPayload = {
         const text = event.target?.result as string;
 
         const parseRow = (rowStr: string) => {
-          const result: string[] =[];
+          const result: string[] = [];
           let current = '';
           let inQuotes = false;
 
@@ -601,18 +602,21 @@ const settingsPayload = {
               current += rowStr[i];
             }
           }
-
           result.push(current.trim());
           return result;
         };
 
         const lines = text.split('\n').filter((line) => line.trim() !== '');
-        const headers = parseRow(lines[0]).map((h) => h.toLowerCase());
+        const headers = parseRow(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, ''));
 
         const nameIdx = headers.findIndex((h) => h.includes('name'));
         const descIdx = headers.findIndex((h) => h.includes('description'));
         const catIdx = headers.findIndex((h) => h.includes('category'));
         const varIdx = headers.findIndex((h) => h.includes('variant'));
+        // NEW columns to find
+        const hidePriceIdx = headers.findIndex((h) => h.includes('hideprice'));
+        const statusIdx = headers.findIndex((h) => h.includes('status'));
+        const imgIdx = headers.findIndex((h) => h.includes('imageurl'));
 
         if (nameIdx === -1 || varIdx === -1) {
           alert(t('CSV must contain "Name" and "Variants" columns.', 'CSV ត្រូវតែមានជួរឈរ "Name" និង "Variants"។'));
@@ -620,7 +624,7 @@ const settingsPayload = {
           return;
         }
 
-        const uploadPromises =[];
+        const uploadPromises = [];
 
         for (let i = 1; i < lines.length; i++) {
           const row = parseRow(lines[i]);
@@ -630,6 +634,11 @@ const settingsPayload = {
           const description = descIdx !== -1 ? row[descIdx] : '';
           const csvCategory = catIdx !== -1 && row[catIdx] ? row[catIdx] : DEFAULT_CATEGORY;
           const rawVariants = row[varIdx] || '';
+
+          // Parse new columns or fall back to defaults
+          const hidePrice = hidePriceIdx !== -1 ? row[hidePriceIdx].toLowerCase() === 'true' : false;
+          const status = statusIdx !== -1 && row[statusIdx] ? row[statusIdx] : 'in_stock';
+          const imageUrl = imgIdx !== -1 && row[imgIdx] ? row[imgIdx] : '';
 
           const parsedVariants = rawVariants
             .split(',')
@@ -653,9 +662,9 @@ const settingsPayload = {
             descriptionKh: '',
             variants: parsedVariants,
             price: parsedVariants[0].price,
-            hidePrice: false,
-            imageUrl: '',
-            status: 'in_stock',
+            hidePrice: hidePrice,
+            imageUrl: imageUrl,
+            status: status,
             createdAt: Date.now(),
           };
 
@@ -676,6 +685,49 @@ const settingsPayload = {
     };
 
     reader.readAsText(file);
+  };
+
+  const handleCSVDownload = () => {
+    // Define the exact headers we want in the CSV
+    const headers = ['Name', 'Category', 'Description', 'Variants', 'HidePrice', 'Status', 'ImageUrl'];
+    
+    // Start building our CSV rows array
+    const csvRows = [headers.join(',')];
+
+    products.forEach((product) => {
+      // Helper function to safely escape strings with commas or quotes
+      const escapeCSV = (str: string) => `"${(str || '').toString().replace(/"/g, '""')}"`;
+
+      const name = escapeCSV(product.name);
+      const category = escapeCSV(product.category || DEFAULT_CATEGORY);
+      const description = escapeCSV(product.description || '');
+
+      // Format variants exactly how the importer expects: "Name1:Price1,Name2:Price2"
+      const variantsStr = (product.variants || [])
+        .map((v: any) => `${v.name}:${v.price}`)
+        .join(',');
+      const variants = escapeCSV(variantsStr);
+
+      const hidePrice = escapeCSV(String(product.hidePrice || false));
+      const status = escapeCSV(product.status || 'in_stock');
+      const imageUrl = escapeCSV(product.imageUrl || '');
+
+      // Push the row data
+      csvRows.push([name, category, description, variants, hidePrice, status, imageUrl].join(','));
+    });
+
+    // Create the Blob and trigger the download
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `store_products_backup_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    logActivity('Exported Products', `${products.length} products`, 'Downloaded full product catalog as CSV');
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -1077,6 +1129,17 @@ const settingsPayload = {
                 </span>
                 <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" disabled={isUploadingCsv} />
               </label>
+
+              {/* NEW EXPORT BUTTON HERE */}
+              <button
+                onClick={handleCSVDownload}
+                className="flex items-center gap-2 px-4 sm:px-5 py-3 bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-100 rounded-xl hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors font-bold text-sm shrink-0"
+              >
+                <Download className="w-4 h-4" />
+                <span className="whitespace-nowrap">
+                  {t('Export CSV', 'ទាញយក CSV')}
+                </span>
+              </button>
 
               {mounted && (
                 <button

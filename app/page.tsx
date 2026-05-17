@@ -210,30 +210,64 @@ facebookUrl: '',
   if (!mounted) return null;
 
   if (loading) {
-    const loadingText = lang === 'kh' ? 'កំពុងរៀបចំហាង...' : 'Getting your store ready...';
-    const loadingSubtext = lang === 'kh' ? 'សូមរង់ចាំ ផលិតផលល្អៗកំពុងមកដល់' : 'Hang tight, great products are on the way';
-
     return (
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-300 flex flex-col items-center justify-center">
-        <div className="flex flex-col items-center gap-8">
-          <div className="flex flex-col items-center">
-            <div className="relative w-24 h-24 mb-6">
-              <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-orange-300 rounded-3xl opacity-20 animate-pulse"></div>
-              <div className="absolute inset-2 bg-gradient-to-r from-orange-400 to-orange-300 rounded-2xl opacity-10 animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-4xl font-extrabold text-orange-400 animate-pulse">✨</div>
-              </div>
+      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-300 flex flex-col items-center justify-center p-6 select-none">
+        <div className="flex flex-col items-center gap-8 max-w-xs w-full text-center animate-fade-up">
+          
+          {/* Sacred Lotus & Aura Container */}
+          <div className="relative w-28 h-28 flex items-center justify-center text-amber-500/90 dark:text-amber-400">
+            
+            {/* Slow Spinning "Dharma Wheel" / Aura */}
+            <svg className="absolute inset-0 w-full h-full animate-spin" viewBox="0 0 100 100" style={{ animationDuration: '8s', animationTimingFunction: 'linear' }}>
+              <circle 
+                cx="50" 
+                cy="50" 
+                r="46" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="1" 
+                strokeLinecap="round" 
+                strokeDasharray="4 12" 
+                className="opacity-50"
+              />
+              <circle 
+                cx="50" 
+                cy="50" 
+                r="38" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="0.5" 
+                className="opacity-30"
+              />
+            </svg>
+            
+            {/* Minimalist Line-Art Lotus */}
+            <div className="relative w-14 h-14 animate-pulse" style={{ animationDuration: '3s' }}>
+              <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                {/* Center Flame / Main Petal */}
+                <path d="M50 20 C50 20, 65 45, 50 80 C35 45, 50 20, 50 20 Z" />
+                {/* Left Petal */}
+                <path d="M50 80 C30 75, 15 55, 20 40 C25 25, 42 45, 42 55" />
+                {/* Right Petal */}
+                <path d="M50 80 C70 75, 85 55, 80 40 C75 25, 58 45, 58 55" />
+                {/* Bottom Ripple / Base */}
+                <path d="M35 88 Q 50 94 65 88" strokeWidth="1.5" className="opacity-60" />
+              </svg>
             </div>
           </div>
-          <div className="text-center">
-            <h2 className="text-2xl font-extrabold text-stone-800 dark:text-white mb-2 tracking-tight">{loadingText}</h2>
-            <p className="text-stone-500 dark:text-stone-400 text-sm font-medium">{loadingSubtext}</p>
+          
+          {/* Zen Typography Block */}
+          <div className="space-y-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-stone-800 dark:text-stone-100 tracking-[0.2em] uppercase transition-all">
+              {lang === 'kh' ? 'សូមរង់ចាំ' : 'LOADING'}
+            </h2>
+            <div className="flex items-center justify-center gap-3 opacity-60">
+              <div className="h-px w-6 bg-amber-500/50"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50"></div>
+              <div className="h-px w-6 bg-amber-500/50"></div>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-          </div>
+
         </div>
       </div>
     );

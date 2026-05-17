@@ -1802,8 +1802,8 @@ const settingsPayload = {
 import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from './providers';
-// NEW: Import Vercel Analytics
 import { Analytics } from '@vercel/analytics/next';
+import Script from 'next/script';
 
 // THIS IS THE FIX: Forces Next.js to treat this layout as dynamic,
 // preventing the DYNAMIC_SERVER_USAGE build error on Vercel.
@@ -1885,6 +1885,11 @@ export default function RootLayout({
         {/* Telegram Mini App meta tags */}
         <meta name="telegram-web-app" content="yes" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+        
+        <Script 
+          src="https://telegram.org/js/telegram-web-app.js" 
+          strategy="beforeInteractive" 
+        />
       </head>
       <body className="subpixel-antialiased min-h-screen bg-background text-foreground text-black dark:text-white" suppressHydrationWarning>
         <Providers>{children}</Providers>
@@ -2046,20 +2051,27 @@ facebookUrl: '',
   }, [searchQuery, categoryFilter, stockFilter]);
 
   useEffect(() => {
-    let ticking = false;
+    let ticking = false; 
+
     const onScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const currentY = window.scrollY;
-          setCompactSearchBar(currentY > 100);
+          
+          // React safely bails out if prev and next are identical, preventing useless re-renders
+          setCompactSearchBar(prev => {
+            const next = currentY > 100;
+            return prev === next ? prev : next; 
+          });
 
-          if (currentY <= 0) {
-            setShowSearchBar(true);
-          } else if (currentY > lastScrollY.current + 15) {
-            setShowSearchBar(false);
-          } else if (currentY < lastScrollY.current - 15) {
-            setShowSearchBar(true);
-          }
+          setShowSearchBar(prev => {
+            let next = prev;
+            if (currentY <= 0) next = true;
+            else if (currentY > lastScrollY.current + 15) next = false;
+            else if (currentY < lastScrollY.current - 15) next = true;
+            
+            return prev === next ? prev : next;
+          });
 
           lastScrollY.current = currentY > 0 ? currentY : 0;
           ticking = false;
@@ -2068,6 +2080,7 @@ facebookUrl: '',
       }
     };
 
+    // passive: true tells the browser we won't call preventDefault, ensuring hardware-accelerated scrolling
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -2546,126 +2559,6 @@ import "./.next/dev/types/routes.d.ts";
 // NOTE: This file should not be edited
 // see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ---
-./components/StickySearchBar.tsx
----
-'use client';
-
-import { useEffect, useState, useRef, useMemo } from 'react';
-import { Search } from 'lucide-react';
-
-interface StickySearchBarProps {
-  searchQuery: string;
-  setSearchQuery: (val: string) => void;
-  categoryFilter: string;
-  setCategoryFilter: (val: string) => void;
-  stockFilter: string;
-  setStockFilter: (val: string) => void;
-  uniqueCategories: string[];
-  lang: string;
-}
-
-const t = (lang: string, en: string, kh: string) => (lang === 'kh' ? kh : en);
-
-export default function StickySearchBar({
-  searchQuery,
-  setSearchQuery,
-  categoryFilter,
-  setCategoryFilter,
-  stockFilter,
-  setStockFilter,
-  uniqueCategories,
-  lang,
-}: StickySearchBarProps) {
-  const [showSearchBar, setShowSearchBar] = useState(true);
-  const [compactSearchBar, setCompactSearchBar] = useState(false);
-
-  const lastScrollY = useRef(0);
-
-  // Scroll tracking — isolated in this component so it never re-renders the product grid
-  useEffect(() => {
-    let ticking = false;
-    const onScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const currentY = window.scrollY;
-          setCompactSearchBar(currentY > 100);
-
-          if (currentY > lastScrollY.current + 15) {
-            setShowSearchBar(false);
-          } else if (currentY < lastScrollY.current - 15) {
-            setShowSearchBar(true);
-          }
-
-          lastScrollY.current = currentY > 0 ? currentY : 0;
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  if (!showSearchBar) return null;
-
-  return (
-    <div
-      className={[
-        'sticky z-40 mb-8 sm:mb-10 transition-all duration-500 ease-in-out',
-        'top-[88px] md:top-24',
-        showSearchBar ? 'translate-y-0 opacity-100' : '-translate-y-[150%] opacity-0 pointer-events-none',
-      ].join(' ')}
-    >
-      <div
-        className={[
-          'max-w-5xl mx-auto bg-white/90 dark:bg-stone-900/90 backdrop-blur-xl border border-stone-200/70 dark:border-stone-800 shadow-lg shadow-stone-200/30 dark:shadow-black/20',
-          'rounded-2xl md:rounded-[2rem]',
-          compactSearchBar ? 'p-2.5' : 'p-3',
-        ].join(' ')}
-      >
-        <div className="flex flex-col gap-3 md:flex-row md:items-center">
-          <div className="flex-1 relative flex items-center group">
-            <Search className="w-5 h-5 text-stone-400 absolute left-4 group-focus-within:text-orange-400 transition-colors" />
-            <input
-              type="text"
-              placeholder={t(lang, 'Search products...', 'ស្វែងរកផលិតផល...')}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-stone-50/80 dark:bg-stone-950/70 border border-stone-200 dark:border-stone-800 rounded-xl md:rounded-2xl outline-none text-stone-800 dark:text-white placeholder-stone-400 text-sm font-medium focus:ring-4 focus:ring-orange-400/10 focus:border-orange-300 transition-all"
-            />
-          </div>
-
-          <div className="flex gap-2 overflow-x-auto no-scrollbar md:overflow-visible md:border-l md:border-stone-200 dark:md:border-stone-800 md:pl-3 shrink-0">
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="min-w-[150px] px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl text-sm font-bold text-stone-600 dark:text-stone-300 outline-none focus:ring-2 focus:ring-orange-400/20 cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors"
-            >
-              <option value="all">{t(lang, 'All Categories', 'ប្រភេទទាំងអស់')}</option>
-              {uniqueCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={stockFilter}
-              onChange={(e) => setStockFilter(e.target.value)}
-              className="min-w-[140px] px-4 py-3 bg-stone-50 dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-xl text-sm font-bold text-stone-600 dark:text-stone-300 outline-none focus:ring-2 focus:ring-orange-400/20 cursor-pointer hover:bg-stone-100 dark:hover:bg-stone-900 transition-colors"
-            >
-              <option value="all">{t(lang, 'All Items', 'ទំនិញទាំងអស់')}</option>
-              <option value="in_stock">{t(lang, 'In Stock Only', 'មានក្នុងស្តុកតែប៉ុណ្ណោះ')}</option>
-              <option value="check_seller">{t(lang, 'Ask Seller', 'សួរអ្នកលក់')}</option>
-              <option value="out_of_stock">{t(lang, 'Out of Stock', 'អស់ពីស្តុក')}</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}---
 ./components/CartModal.tsx
 ---
 'use client';
@@ -3199,10 +3092,12 @@ export default function ProductCard({
   }, [product.id]);
 
   useEffect(() => {
+    let originalStyle = '';
+    
+    // If we are opening the lightbox, save the CURRENT scroll state before locking it
     if (isLightboxOpen) {
+      originalStyle = window.getComputedStyle(document.body).overflow;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -3212,7 +3107,10 @@ export default function ProductCard({
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'auto'; 
+      // When the component cleans up (lightbox closes), put the scroll state back exactly how we found it
+      if (isLightboxOpen) {
+        document.body.style.overflow = originalStyle; 
+      }
     };
   }, [isLightboxOpen]);
 
