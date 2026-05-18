@@ -120,6 +120,7 @@ import {
   Image as ImageIcon,
   X,
   FileUp,
+  Download,
   Loader2,
   ArrowUp,
   ArrowDown,
@@ -676,7 +677,7 @@ const settingsPayload = {
         const text = event.target?.result as string;
 
         const parseRow = (rowStr: string) => {
-          const result: string[] =[];
+          const result: string[] = [];
           let current = '';
           let inQuotes = false;
 
@@ -690,18 +691,21 @@ const settingsPayload = {
               current += rowStr[i];
             }
           }
-
           result.push(current.trim());
           return result;
         };
 
         const lines = text.split('\n').filter((line) => line.trim() !== '');
-        const headers = parseRow(lines[0]).map((h) => h.toLowerCase());
+        const headers = parseRow(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, ''));
 
         const nameIdx = headers.findIndex((h) => h.includes('name'));
         const descIdx = headers.findIndex((h) => h.includes('description'));
         const catIdx = headers.findIndex((h) => h.includes('category'));
         const varIdx = headers.findIndex((h) => h.includes('variant'));
+        // NEW columns to find
+        const hidePriceIdx = headers.findIndex((h) => h.includes('hideprice'));
+        const statusIdx = headers.findIndex((h) => h.includes('status'));
+        const imgIdx = headers.findIndex((h) => h.includes('imageurl'));
 
         if (nameIdx === -1 || varIdx === -1) {
           alert(t('CSV must contain "Name" and "Variants" columns.', 'CSV ត្រូវតែមានជួរឈរ "Name" និង "Variants"។'));
@@ -709,7 +713,7 @@ const settingsPayload = {
           return;
         }
 
-        const uploadPromises =[];
+        const uploadPromises = [];
 
         for (let i = 1; i < lines.length; i++) {
           const row = parseRow(lines[i]);
@@ -719,6 +723,11 @@ const settingsPayload = {
           const description = descIdx !== -1 ? row[descIdx] : '';
           const csvCategory = catIdx !== -1 && row[catIdx] ? row[catIdx] : DEFAULT_CATEGORY;
           const rawVariants = row[varIdx] || '';
+
+          // Parse new columns or fall back to defaults
+          const hidePrice = hidePriceIdx !== -1 ? row[hidePriceIdx].toLowerCase() === 'true' : false;
+          const status = statusIdx !== -1 && row[statusIdx] ? row[statusIdx] : 'in_stock';
+          const imageUrl = imgIdx !== -1 && row[imgIdx] ? row[imgIdx] : '';
 
           const parsedVariants = rawVariants
             .split(',')
@@ -742,9 +751,9 @@ const settingsPayload = {
             descriptionKh: '',
             variants: parsedVariants,
             price: parsedVariants[0].price,
-            hidePrice: false,
-            imageUrl: '',
-            status: 'in_stock',
+            hidePrice: hidePrice,
+            imageUrl: imageUrl,
+            status: status,
             createdAt: Date.now(),
           };
 
@@ -765,6 +774,49 @@ const settingsPayload = {
     };
 
     reader.readAsText(file);
+  };
+
+  const handleCSVDownload = () => {
+    // Define the exact headers we want in the CSV
+    const headers = ['Name', 'Category', 'Description', 'Variants', 'HidePrice', 'Status', 'ImageUrl'];
+    
+    // Start building our CSV rows array
+    const csvRows = [headers.join(',')];
+
+    products.forEach((product) => {
+      // Helper function to safely escape strings with commas or quotes
+      const escapeCSV = (str: string) => `"${(str || '').toString().replace(/"/g, '""')}"`;
+
+      const name = escapeCSV(product.name);
+      const category = escapeCSV(product.category || DEFAULT_CATEGORY);
+      const description = escapeCSV(product.description || '');
+
+      // Format variants exactly how the importer expects: "Name1:Price1,Name2:Price2"
+      const variantsStr = (product.variants || [])
+        .map((v: any) => `${v.name}:${v.price}`)
+        .join(',');
+      const variants = escapeCSV(variantsStr);
+
+      const hidePrice = escapeCSV(String(product.hidePrice || false));
+      const status = escapeCSV(product.status || 'in_stock');
+      const imageUrl = escapeCSV(product.imageUrl || '');
+
+      // Push the row data
+      csvRows.push([name, category, description, variants, hidePrice, status, imageUrl].join(','));
+    });
+
+    // Create the Blob and trigger the download
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `store_products_backup_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    logActivity('Exported Products', `${products.length} products`, 'Downloaded full product catalog as CSV');
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -1166,6 +1218,17 @@ const settingsPayload = {
                 </span>
                 <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" disabled={isUploadingCsv} />
               </label>
+
+              {/* NEW EXPORT BUTTON HERE */}
+              <button
+                onClick={handleCSVDownload}
+                className="flex items-center gap-2 px-4 sm:px-5 py-3 bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-100 rounded-xl hover:bg-stone-200 dark:hover:bg-stone-700 transition-colors font-bold text-sm shrink-0"
+              >
+                <Download className="w-4 h-4" />
+                <span className="whitespace-nowrap">
+                  {t('Export CSV', 'ទាញយក CSV')}
+                </span>
+              </button>
 
               {mounted && (
                 <button
@@ -1925,6 +1988,7 @@ import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/fires
 import { Search, FilterX, Loader2, MapPin, Info } from 'lucide-react';
 import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
+import { optimizeCloudinaryUrl } from '@/lib/utils';
 
 const DEFAULT_CATEGORY = '';
 const PRODUCTS_PER_PAGE = 30;
@@ -2129,30 +2193,64 @@ facebookUrl: '',
   if (!mounted) return null;
 
   if (loading) {
-    const loadingText = lang === 'kh' ? 'កំពុងរៀបចំហាង...' : 'Getting your store ready...';
-    const loadingSubtext = lang === 'kh' ? 'សូមរង់ចាំ ផលិតផលល្អៗកំពុងមកដល់' : 'Hang tight, great products are on the way';
-
     return (
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-300 flex flex-col items-center justify-center">
-        <div className="flex flex-col items-center gap-8">
-          <div className="flex flex-col items-center">
-            <div className="relative w-24 h-24 mb-6">
-              <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-orange-300 rounded-3xl opacity-20 animate-pulse"></div>
-              <div className="absolute inset-2 bg-gradient-to-r from-orange-400 to-orange-300 rounded-2xl opacity-10 animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-4xl font-extrabold text-orange-400 animate-pulse">✨</div>
-              </div>
+      <div className="min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-300 flex flex-col items-center justify-center p-6 select-none">
+        <div className="flex flex-col items-center gap-8 max-w-xs w-full text-center animate-fade-up">
+          
+          {/* Sacred Lotus & Aura Container */}
+          <div className="relative w-28 h-28 flex items-center justify-center text-amber-500/90 dark:text-amber-400">
+            
+            {/* Slow Spinning "Dharma Wheel" / Aura */}
+            <svg className="absolute inset-0 w-full h-full animate-spin" viewBox="0 0 100 100" style={{ animationDuration: '8s', animationTimingFunction: 'linear' }}>
+              <circle 
+                cx="50" 
+                cy="50" 
+                r="46" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="1" 
+                strokeLinecap="round" 
+                strokeDasharray="4 12" 
+                className="opacity-50"
+              />
+              <circle 
+                cx="50" 
+                cy="50" 
+                r="38" 
+                fill="none" 
+                stroke="currentColor" 
+                strokeWidth="0.5" 
+                className="opacity-30"
+              />
+            </svg>
+            
+            {/* Minimalist Line-Art Lotus */}
+            <div className="relative w-14 h-14 animate-pulse" style={{ animationDuration: '3s' }}>
+              <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                {/* Center Flame / Main Petal */}
+                <path d="M50 20 C50 20, 65 45, 50 80 C35 45, 50 20, 50 20 Z" />
+                {/* Left Petal */}
+                <path d="M50 80 C30 75, 15 55, 20 40 C25 25, 42 45, 42 55" />
+                {/* Right Petal */}
+                <path d="M50 80 C70 75, 85 55, 80 40 C75 25, 58 45, 58 55" />
+                {/* Bottom Ripple / Base */}
+                <path d="M35 88 Q 50 94 65 88" strokeWidth="1.5" className="opacity-60" />
+              </svg>
             </div>
           </div>
-          <div className="text-center">
-            <h2 className="text-2xl font-extrabold text-stone-800 dark:text-white mb-2 tracking-tight">{loadingText}</h2>
-            <p className="text-stone-500 dark:text-stone-400 text-sm font-medium">{loadingSubtext}</p>
+          
+          {/* Zen Typography Block */}
+          <div className="space-y-3">
+            <h2 className="text-xl sm:text-2xl font-bold text-stone-800 dark:text-stone-100 tracking-[0.2em] uppercase transition-all">
+              {lang === 'kh' ? 'សូមរង់ចាំ' : 'LOADING'}
+            </h2>
+            <div className="flex items-center justify-center gap-3 opacity-60">
+              <div className="h-px w-6 bg-amber-500/50"></div>
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500/50"></div>
+              <div className="h-px w-6 bg-amber-500/50"></div>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }}></div>
-            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-            <div className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-          </div>
+
         </div>
       </div>
     );
@@ -2188,7 +2286,7 @@ facebookUrl: '',
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-14 flex flex-col items-center animate-fade-up">
           {settings.heroImageUrl && (
             <img
-              src={settings.heroImageUrl}
+              src={optimizeCloudinaryUrl(settings.heroImageUrl)}
               alt={`${settings.storeName} Hero`}
               className="mb-6 sm:mb-8 object-contain drop-shadow-sm transition-all duration-300 hover:scale-105"
               style={{ height: `${settings.heroImageSize}px` }}
@@ -2939,6 +3037,7 @@ import { Send, X, ZoomIn, ShoppingCart } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useCart } from '@/lib/cartContext';
+import { optimizeCloudinaryUrl } from '@/lib/utils';
 
 interface Variant {
   name: string;
@@ -3073,6 +3172,8 @@ export default function ProductCard({
     }, 280);
   };
 
+  const optimizedImgUrl = optimizeCloudinaryUrl(product.imageUrl);
+
   const handleAddToCart = () => {
     addToCart({
       id: product.id,
@@ -3129,11 +3230,11 @@ export default function ProductCard({
 
               <div
                 className="absolute inset-0 bg-cover bg-center opacity-40 dark:opacity-30 blur-2xl scale-110 saturate-150 transition-transform duration-500 group-hover:scale-125"
-                style={{ backgroundImage: `url(${product.imageUrl})` }}
+                style={{ backgroundImage: `url(${optimizedImgUrl})` }}
               />
 
               <img
-                src={product.imageUrl}
+                src={optimizedImgUrl}
                 alt={product.name || 'Product Image'}
                 className="relative z-10 max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] object-contain rounded-2xl group-hover:scale-105 transition-transform duration-700 ease-out shadow-2xl"
                 loading="lazy"
@@ -3240,7 +3341,7 @@ export default function ProductCard({
           </button>
 
           <img
-            src={product.imageUrl}
+            src={optimizedImgUrl}
             className={`w-[95vw] h-[95vh] object-contain rounded-2xl shadow-2xl transition-all duration-300 ${
               isMounted && !isClosing
                 ? 'scale-100 translate-y-0 blur-none opacity-100'
@@ -3494,6 +3595,20 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);---
+./lib/utils.ts
+---
+export function optimizeCloudinaryUrl(url: string | undefined): string {
+  if (!url || typeof url !== 'string') return '';
+  
+  // If it's not a Cloudinary URL, leave it alone
+  if (!url.includes('res.cloudinary.com')) return url;
+
+  // If we've already optimized it, don't double-inject
+  if (url.includes('f_auto') || url.includes('q_auto')) return url;
+
+  // Inject auto-format and high-quality auto-compression
+  return url.replace('/upload/', '/upload/f_auto,q_auto:best/');
+}---
 ./lib/telegram.ts
 ---
 'use client';

@@ -4,6 +4,7 @@ import { Send, X, ZoomIn, ShoppingCart } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useCart } from '@/lib/cartContext';
+import { optimizeCloudinaryUrl } from '@/lib/utils';
 
 interface Variant {
   name: string;
@@ -138,6 +139,8 @@ export default function ProductCard({
     }, 280);
   };
 
+  const optimizedImgUrl = optimizeCloudinaryUrl(product.imageUrl);
+
   const handleAddToCart = () => {
     addToCart({
       id: product.id,
@@ -194,11 +197,11 @@ export default function ProductCard({
 
               <div
                 className="absolute inset-0 bg-cover bg-center opacity-40 dark:opacity-30 blur-2xl scale-110 saturate-150 transition-transform duration-500 group-hover:scale-125"
-                style={{ backgroundImage: `url(${product.imageUrl})` }}
+                style={{ backgroundImage: `url(${optimizedImgUrl})` }}
               />
 
               <img
-                src={product.imageUrl}
+                src={optimizedImgUrl}
                 alt={product.name || 'Product Image'}
                 className="relative z-10 max-w-[calc(100%-2rem)] max-h-[calc(100%-2rem)] object-contain rounded-2xl group-hover:scale-105 transition-transform duration-700 ease-out shadow-2xl"
                 loading="lazy"
@@ -305,7 +308,7 @@ export default function ProductCard({
           </button>
 
           <img
-            src={product.imageUrl}
+            src={optimizedImgUrl}
             className={`w-[95vw] h-[95vh] object-contain rounded-2xl shadow-2xl transition-all duration-300 ${
               isMounted && !isClosing
                 ? 'scale-100 translate-y-0 blur-none opacity-100'

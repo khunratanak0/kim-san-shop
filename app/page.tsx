@@ -6,6 +6,7 @@ import { collection, getDocs, doc, getDoc, query, orderBy } from 'firebase/fires
 import { Search, FilterX, Loader2, MapPin, Info } from 'lucide-react';
 import Header from '@/components/Header';
 import ProductCard from '@/components/ProductCard';
+import { optimizeCloudinaryUrl } from '@/lib/utils';
 
 const DEFAULT_CATEGORY = '';
 const PRODUCTS_PER_PAGE = 30;
@@ -303,7 +304,7 @@ facebookUrl: '',
         <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-14 flex flex-col items-center animate-fade-up">
           {settings.heroImageUrl && (
             <img
-              src={settings.heroImageUrl}
+              src={optimizeCloudinaryUrl(settings.heroImageUrl)}
               alt={`${settings.storeName} Hero`}
               className="mb-6 sm:mb-8 object-contain drop-shadow-sm transition-all duration-300 hover:scale-105"
               style={{ height: `${settings.heroImageSize}px` }}
