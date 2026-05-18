@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   trailingSlash: true,
+  serverExternalPackages: ['firebase-admin'],
 
   // Telegram Mini App: allow embedding in Telegram's webview iframe
   async headers() {
