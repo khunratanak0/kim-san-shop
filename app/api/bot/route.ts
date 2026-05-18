@@ -5,8 +5,6 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { collection, addDoc, getDocs, doc, getDoc, setDoc, deleteDoc, arrayUnion } from 'firebase/firestore';
 
 const ADMIN_ID = 2014829368; // Your verified Telegram ID
-
-// Define chronological order of steps for the back button
 const STEPS_ORDER = ['NAME', 'CATEGORY', 'PRICE', 'DESCRIPTION', 'IMAGE', 'CONFIRM'];
 
 export async function POST(req: Request) {
@@ -14,33 +12,39 @@ export async function POST(req: Request) {
     const token = process.env.BOT_TOKEN;
     if (!token) return NextResponse.json({ error: "Token missing" }, { status: 500 });
 
+    // FIX: Log into Firebase IMMEDIATELY so all database reads/writes are authorized
+    await signInWithEmailAndPassword(
+      auth, 
+      process.env.ADMIN_EMAIL as string, 
+      process.env.ADMIN_PASSWORD as string
+    );
+
     const bot = new Telegraf(token);
     const body = await req.json();
 
-    // 1. Intercept incoming user info to look up or initialize session state
+    // Intercept incoming user info
     const tgUser = body.message?.from || body.callback_query?.from;
     if (!tgUser || tgUser.id !== ADMIN_ID) {
-      return NextResponse.json({ ok: true }); // Ignore unauthorized users silently
+      return NextResponse.json({ ok: true }); // Ignore unauthorized users
     }
 
     const sessionRef = doc(db, 'botSessions', String(ADMIN_ID));
     const sessionSnap = await getDoc(sessionRef);
     let session = sessionSnap.exists() ? sessionSnap.data() : { step: 'IDLE', data: {} };
 
-    // Helper to change steps and update database
+    // Helper to change steps
     const goToStep = async (ctx: any, nextStep: string, promptText: string, extraMenu?: any) => {
       await setDoc(sessionRef, { step: nextStep, data: session.data }, { merge: true });
       if (extraMenu) {
         return ctx.reply(promptText, extraMenu);
       } else {
-        // Default menu with Go Back & Cancel buttons
         return ctx.reply(promptText, Markup.inlineKeyboard([
           [Markup.button.callback('⬅️ Go Back', 'action_back'), Markup.button.callback('❌ Cancel', 'action_cancel')]
         ]));
       }
     };
 
-    // 2. Setup Bot Command Handlers
+    // Command Handlers
     bot.command('start', async (ctx) => {
       await deleteDoc(sessionRef);
       return ctx.reply('🛒 Lazy Admin Bot Active!\n\nUse /add to start adding a product step-by-step.');
@@ -52,11 +56,11 @@ export async function POST(req: Request) {
     });
 
     bot.command('add', async (ctx) => {
-      session.data = {}; // Reset data
+      session.data = {}; 
       return goToStep(ctx, 'NAME', '📝 Step 1: Enter the **Product Name**:');
     });
 
-    // 3. Handle Generic Action Clicks (Back / Cancel / Confirm)
+    // Inline Button Actions
     bot.action('action_cancel', async (ctx) => {
       await deleteDoc(sessionRef);
       await ctx.answerCbQuery();
@@ -72,9 +76,8 @@ export async function POST(req: Request) {
       }
 
       const prevStep = STEPS_ORDER[currentIdx - 1];
-      session.step = prevStep; // Mutate local reference for prompt routing below
+      session.step = prevStep; 
       
-      // Trigger appropriate retro-prompts depending on where they backed up to
       if (prevStep === 'NAME') {
         return goToStep(ctx, 'NAME', '📝 Step 1: Re-enter the **Product Name**:');
       } else if (prevStep === 'CATEGORY') {
@@ -88,16 +91,14 @@ export async function POST(req: Request) {
       }
     });
 
-    // Helper to generate categories menu
     const sendCategoryPrompt = async (ctx: any) => {
       const globalSettings = await getDoc(doc(db, 'settings', 'global'));
       const categories: string[] = globalSettings.exists() ? (globalSettings.data().categories || []) : [];
       
-      // Build inline rows out of existing website categories
       const buttons = categories.map(cat => [Markup.button.callback(cat, `cat_${cat}`)]);
       buttons.push([Markup.button.callback('⬅️ Go Back', 'action_back'), Markup.button.callback('❌ Cancel', 'action_cancel')]);
 
-      return goToStep(ctx, 'CATEGORY', '📁 Step 2: Select a **Category** from your website menu below, or type a brand new one directly into the chat:', Markup.inlineKeyboard(buttons));
+      return goToStep(ctx, 'CATEGORY', '📁 Step 2: Select a **Category** below, or type a brand new one directly into the chat:', Markup.inlineKeyboard(buttons));
     };
 
     bot.action(/^cat_(.+)$/, async (ctx) => {
@@ -110,11 +111,9 @@ export async function POST(req: Request) {
 
     bot.action('action_save_product', async (ctx) => {
       await ctx.answerCbQuery();
-      await ctx.reply('⏳ Writing data and logging access sessions securely...');
+      await ctx.reply('⏳ Saving product to your website dashboard...');
       
       try {
-        await signInWithEmailAndPassword(auth, process.env.ADMIN_EMAIL as string, process.env.ADMIN_PASSWORD as string);
-        
         const snapshot = await getDocs(collection(db, 'products'));
         const finalProduct = {
           name: session.data.name,
@@ -146,15 +145,14 @@ export async function POST(req: Request) {
         }
 
         await deleteDoc(sessionRef);
-        return ctx.reply(`🎉 Success! *${finalProduct.name}* has been added to your website inventory!`, { parse_mode: 'Markdown' });
+        return ctx.reply(`🎉 Success! *${finalProduct.name}* has been published to your store!`, { parse_mode: 'Markdown' });
       } catch (err: any) {
         return ctx.reply(`❌ Database Transaction Failed: ${err.message}`);
       }
     });
 
-    // 4. Fallback Incoming Message Core Processor (Text inputs or Image files)
+    // Message Processing Pipeline (Text inputs & Images)
     bot.on('message', async (ctx: any) => {
-      // Catch standard native commands immediately to bypass pipeline intercepts
       const msgText = ctx.message?.text || '';
       if (msgText.startsWith('/')) return; 
 
@@ -177,13 +175,13 @@ export async function POST(req: Request) {
         }
         session.data.price = cleanPrice;
         await setDoc(sessionRef, session);
-        return goToStep(ctx, 'DESCRIPTION', '✍精度 Step 4: Enter the **Product Description**:');
+        return goToStep(ctx, 'DESCRIPTION', '✍️ Step 4: Enter the **Product Description**:');
       } 
       
       else if (session.step === 'DESCRIPTION') {
         session.data.description = msgText.trim();
         await setDoc(sessionRef, session);
-        return goToStep(ctx, 'IMAGE', '🖼️ Step 5: Tap the attachment clip 📎 or camera icon and **send a Photo** of the product directly to this chat:');
+        return goToStep(ctx, 'IMAGE', '🖼️ Step 5: Send or upload a **Photo** of the product directly to this chat:');
       } 
       
       else if (session.step === 'IMAGE') {
@@ -192,15 +190,13 @@ export async function POST(req: Request) {
           return ctx.reply('⚠️ That was not a photo! Please upload or snap an actual image file:');
         }
 
-        await ctx.reply('⚡ Media received! Streaming secure buffers directly to Cloudinary servers...');
+        await ctx.reply('⚡ Photo received! Uploading directly to Cloudinary...');
         
         try {
-          // Get the highest resolution image object from array
           const largestPhoto = photoArray[photoArray.length - 1];
           const fileLinkObj = await bot.telegram.getFileLink(largestPhoto.file_id);
           const telegramDirectUrl = fileLinkObj.toString();
 
-          // Stream straight to Cloudinary using basic built-in fetch structure
           const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
           const formData = new FormData();
           formData.append('file', telegramDirectUrl);
@@ -220,14 +216,13 @@ export async function POST(req: Request) {
           session.step = 'CONFIRM';
           await setDoc(sessionRef, session);
 
-          // Render summary display screen
           const summaryMarkdown = 
             `🔎 *Review Your Product Details* 🔎\n\n` +
             `📛 *Name:* ${session.data.name}\n` +
             `📁 *Category:* ${session.data.category}\n` +
             `💰 *Price:* $${session.data.price.toFixed(2)}\n` +
             `✍️ *Description:* ${session.data.description}\n\n` +
-            `🖼️ *Image Uploaded successfully to Cloudinary!*`;
+            `🖼️ *Image uploaded safely to Cloudinary!*`;
 
           return ctx.replyWithPhoto(session.data.imageUrl, {
             caption: summaryMarkdown,
@@ -240,12 +235,11 @@ export async function POST(req: Request) {
 
         } catch (uploadError: any) {
           console.error("Cloudinary Engine Fault:", uploadError);
-          return ctx.reply(`❌ Cloudinary Upload Failed: ${uploadError.message}. Please send the image again:`);
+          return ctx.reply(`❌ Cloudinary Upload Failed: ${uploadError.message}. Please try sending the image again:`);
         }
       }
     });
 
-    // 5. Execute Webhook Runtime engine update iteration loop pass
     await bot.handleUpdate(body);
     return NextResponse.json({ ok: true });
   } catch (error: any) {
